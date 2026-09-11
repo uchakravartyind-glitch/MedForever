@@ -1,7 +1,7 @@
 # 🏥 MedForever
 ### Universal Multimodal Medical Bridge — From Messy Human Intent to Life-Saving Clinical Actions
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-medforever.onrender.com-46E3B7?style=for-the-badge&logo=render&logoColor=white)](https://medforever.onrender.com)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-medforever.onrender.com-46E3B7?style=for-the-badge&logo=render&logoColor=white)]([https://medforever.onrender.com](https://medforever.onrender.com/))
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/uchakravartyind-glitch/MedForever)
 [![Google for Developers](https://img.shields.io/badge/Google%20for%20Developers-Build%20with%20AI-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://developers.google.com/)
 [![Gemini 2.5 Flash](https://img.shields.io/badge/Powered%20By-Gemini%202.5%20Flash-8E75B2?style=for-the-badge&logo=google-gemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
