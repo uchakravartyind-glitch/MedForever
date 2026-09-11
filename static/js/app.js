@@ -647,6 +647,8 @@ function renderResults(data, fhirBundle, hl7Message) {
 
   // 3. Mayo Clinic Condition Profile & Diagnostic Workup
   const condProfile = data.condition_profile || {};
+  renderAnatomicalArtwork(condProfile.category, condProfile.name);
+
   const mayoTitle = document.getElementById("mayoConditionTitle");
   const mayoIcd = document.getElementById("mayoIcdBadge");
   const mayoCategory = document.getElementById("mayoCategoryBadge");
@@ -999,15 +1001,109 @@ function closeHealthCardModal() {
 }
 
 // ==========================================
-// 9. DIRECT PDF DOWNLOAD & DIRECT PRINT
+// 9. MAYO CLINIC ANATOMICAL SYSTEM ARTWORK
+// ==========================================
+function renderAnatomicalArtwork(category, conditionName) {
+  const iconBox = document.getElementById("mayoAnatomyIconBox");
+  const deptTag = document.getElementById("mayoDepartmentTag");
+  const subTitle = document.getElementById("mayoPathologySubtitle");
+  const metric = document.getElementById("mayoSystemMetric");
+
+  if (!iconBox) return;
+
+  const catLower = (category || "").toLowerCase();
+  const nameLower = (conditionName || "").toLowerCase();
+
+  let svgHtml = "";
+  let dept = "Mayo Clinic Internal Medicine";
+  let pathText = "Evidence-Based Diagnostic Workup";
+  let sysMetric = "Systemic Homeostasis Active";
+
+  if (catLower.includes("cardio") || nameLower.includes("heart") || nameLower.includes("stemi") || nameLower.includes("coronary") || nameLower.includes("angina")) {
+    dept = "Mayo Clinic Cardiovascular Medicine";
+    pathText = "Coronary Arterial & Myocardial Perfusion";
+    sysMetric = "Cardiac Rhythm Telemetry Active";
+    svgHtml = `
+      <svg viewBox="0 0 48 48" fill="none" class="w-10 h-10">
+        <path d="M24 40S8 28 8 16a8 8 0 0116-2 8 8 0 0116 2c0 12-16 24-16 24z" fill="#ffe4e6" stroke="#e11d48" stroke-width="2.5"/>
+        <path d="M24 8v10M18 12l12 0" stroke="#be123c" stroke-width="2" stroke-linecap="round"/>
+        <path d="M12 24l5 2 3-6 4 9 3-5 5 2" stroke="#e11d48" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    `;
+  } else if (catLower.includes("pulmon") || catLower.includes("respirat") || nameLower.includes("lung") || nameLower.includes("pneumonia") || nameLower.includes("asthma") || nameLower.includes("bronch")) {
+    dept = "Mayo Clinic Pulmonary & Critical Care";
+    pathText = "Tracheobronchial & Alveolar Gas Exchange";
+    sysMetric = "SpO2 Oxygenation Telemetry Active";
+    svgHtml = `
+      <svg viewBox="0 0 48 48" fill="none" class="w-10 h-10">
+        <path d="M24 4v16M24 16l-8 7M24 16l8 7" stroke="#0284c7" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M16 22c-6 0-10 4-10 11 0 7 5 11 11 11h2V22h-3z" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+        <path d="M32 22c6 0 10 4 10 11 0 7-5 11-11 11h-2V22h3z" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+        <circle cx="16" cy="32" r="2" fill="#38bdf8"/>
+        <circle cx="32" cy="32" r="2" fill="#38bdf8"/>
+      </svg>
+    `;
+  } else if (catLower.includes("neuro") || nameLower.includes("stroke") || nameLower.includes("brain") || nameLower.includes("cva") || nameLower.includes("headache") || nameLower.includes("migraine")) {
+    dept = "Mayo Clinic Neurology & Stroke Center";
+    pathText = "Cerebrovascular & Cortical Neural Mapping";
+    sysMetric = "Cranial Nerve / NIHSS Monitored";
+    svgHtml = `
+      <svg viewBox="0 0 48 48" fill="none" class="w-10 h-10">
+        <path d="M24 8c-4 0-7 3-8 6-3 0-6 3-6 7 0 3 2 5 3 6-3 2-4 5-4 8 0 5 4 8 9 8h6V8h-0z" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+        <path d="M24 8c4 0 7 3 8 6 3 0 6 3 6 7 0 3-2 5-3 6 3 2 4 5 4 8 0 5-4 8-9 8h-6V8h0z" fill="#f3e8ff" stroke="#9333ea" stroke-width="2"/>
+        <circle cx="20" cy="22" r="2" fill="#a855f7"/>
+        <circle cx="28" cy="22" r="2" fill="#a855f7"/>
+        <path d="M24 16v18" stroke="#7e22ce" stroke-width="1.5" stroke-dasharray="2 2"/>
+      </svg>
+    `;
+  } else if (catLower.includes("gastro") || nameLower.includes("stomach") || nameLower.includes("digest") || nameLower.includes("bowel") || nameLower.includes("gerd")) {
+    dept = "Mayo Clinic Gastroenterology & Hepatology";
+    pathText = "Gastrointestinal Mucosal & Enteric System";
+    sysMetric = "Enteric Fluid Balance Monitored";
+    svgHtml = `
+      <svg viewBox="0 0 48 48" fill="none" class="w-10 h-10">
+        <path d="M24 6v10c0 4-4 6-4 10 0 7 5 12 11 12s7-4 7-9c0-4-3-6-5-7l-3-2" stroke="#d97706" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="24" cy="26" r="14" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="3 3"/>
+      </svg>
+    `;
+  } else if (catLower.includes("immuno") || nameLower.includes("allergy") || nameLower.includes("anaphylaxis")) {
+    dept = "Mayo Clinic Allergy & Clinical Immunology";
+    pathText = "Systemic Mast Cell & IgE Receptor Cascade";
+    sysMetric = "Airway & Histamine Alert Active";
+    svgHtml = `
+      <svg viewBox="0 0 48 48" fill="none" class="w-10 h-10">
+        <path d="M24 4L8 10v12c0 10.5 6.8 20.2 16 23 9.2-2.8 16-12.5 16-23V10L24 4z" fill="#ecfdf5" stroke="#059669" stroke-width="2.5"/>
+        <path d="M24 14v18M15 23h18" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    `;
+  } else {
+    dept = "Mayo Clinic General Internal Medicine";
+    pathText = "Multimodal Pharmacotherapy & Disease Protocol";
+    sysMetric = "Clinical Bioequivalence Cleared";
+    svgHtml = `
+      <svg viewBox="0 0 48 48" fill="none" class="w-10 h-10">
+        <rect x="10" y="8" width="28" height="34" rx="4" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+        <path d="M24 16v16M16 24h16" stroke="#0369a1" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+    `;
+  }
+
+  iconBox.innerHTML = svgHtml;
+  if (deptTag) deptTag.innerText = dept;
+  if (subTitle) subTitle.innerText = pathText;
+  if (metric) metric.innerText = sysMetric;
+}
+
+// ==========================================
+// 10. DIRECT PDF DOWNLOAD & DIRECT PRINT
 // ==========================================
 async function downloadClinicalReportDirectPdf() {
   if (!currentAnalysisData) {
-    alert("Please analyze patient data or load a scenario first.");
+    alert("Please analyze patient data first.");
     return;
   }
   
-  showLoading(true, "Generating Clinical PDF...", "Formulating high-resolution discharge report...");
+  showLoading(true, "Generating Clinical Discharge PDF...", "Formulating Mayo Clinic clinical report...");
 
   try {
     const res = await fetch("/api/report/html", {
@@ -1021,15 +1117,28 @@ async function downloadClinicalReportDirectPdf() {
     }
     
     const html = await res.text();
-    
-    const container = document.getElementById("pdfRenderContainer");
-    container.innerHTML = html;
-    
     const patientName = (currentAnalysisData.patient?.name || 'Patient').replace(/[^a-zA-Z0-9]/g, '_');
     
+    // Create dedicated off-screen iframe
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.left = "0";
+    iframe.style.top = "0";
+    iframe.style.width = "850px";
+    iframe.style.height = "1200px";
+    iframe.style.zIndex = "-9999";
+    iframe.style.opacity = "0.01";
+    document.body.appendChild(iframe);
+    
+    iframe.contentDocument.open();
+    iframe.contentDocument.write(html);
+    iframe.contentDocument.close();
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     const opt = {
-      margin: [10, 10, 10, 10],
-      filename: `MedForever_Clinical_Report_${patientName}.pdf`,
+      margin: [8, 8, 8, 8],
+      filename: `MedForever_MayoClinic_Discharge_${patientName}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { 
         scale: 2, 
@@ -1041,16 +1150,17 @@ async function downloadClinicalReportDirectPdf() {
     };
     
     if (window.html2pdf) {
-      await window.html2pdf().set(opt).from(container).save();
-      container.innerHTML = "";
+      await window.html2pdf().set(opt).from(iframe.contentDocument.body).save();
     } else {
-      const win = window.open("", "_blank");
-      win.document.write(html);
-      win.document.close();
-      win.print();
+      iframe.contentWindow.print();
     }
+
+    setTimeout(() => {
+      if (document.body.contains(iframe)) document.body.removeChild(iframe);
+    }, 2000);
   } catch (e) {
-    alert("Failed to generate PDF download: " + e.message);
+    console.error("PDF generation error, opening print fallback:", e);
+    printClinicalReportDirect();
   } finally {
     showLoading(false);
   }
@@ -1058,7 +1168,7 @@ async function downloadClinicalReportDirectPdf() {
 
 async function printClinicalReportDirect() {
   if (!currentAnalysisData) {
-    alert("Please analyze patient data or load a scenario first.");
+    alert("Please analyze patient data first.");
     return;
   }
   try {
@@ -1070,12 +1180,16 @@ async function printClinicalReportDirect() {
     const html = await res.text();
     
     const printWindow = window.open("", "_blank");
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 500);
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    } else {
+      alert("Please allow popups to view and print the discharge report.");
+    }
   } catch (e) {
     alert("Print failed: " + e.message);
   }

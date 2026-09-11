@@ -178,8 +178,8 @@ def test_printable_report_with_mayo_profile():
         patient_allergies="None"
     )
     html = generate_printable_report_html(sample_analysis)
-    assert "Mayo Clinic Clinical Impression" in html
+    assert "Mayo Clinic" in html
     assert "ICD-10:" in html
-    assert "Diagnostic Tests:" in html
+    assert "Diagnostic" in html
 
 

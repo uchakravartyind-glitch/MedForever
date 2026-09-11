@@ -151,32 +151,10 @@
           </select>
         </div>
 
-        <!-- Discreet Demo Scenarios Dropdown (Testing Only) -->
-        <div class="relative">
-          <button id="demoDropdownBtn" onclick="toggleDemoDropdown()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors">
-            <i data-lucide="flask-conical" class="w-3.5 h-3.5 text-indigo-500"></i>
-            <span class="hidden sm:inline">Test Scenarios</span>
-            <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400"></i>
-          </button>
-          <div id="demoDropdownMenu" class="hidden absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 text-xs space-y-1">
-            <div class="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sample Clinical Evaluations</div>
-            <button onclick="loadScenario('fatal_drug_clash')" class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-200 flex flex-col transition-colors">
-              <span class="font-bold text-red-600 dark:text-red-400">1. Fatal Drug Clash</span>
-              <span class="text-[11px] text-slate-400">Warfarin + High-Dose Ibuprofen</span>
-            </button>
-            <button onclick="loadScenario('frantic_voice_triage')" class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-200 flex flex-col transition-colors">
-              <span class="font-bold text-amber-600 dark:text-amber-400">2. Emergency STEMI Voice</span>
-              <span class="text-[11px] text-slate-400">Acute cardiac distress bystander memo</span>
-            </button>
-            <button onclick="loadScenario('pediatric_handwriting')" class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-teal-50 dark:hover:bg-teal-950/40 text-slate-700 dark:text-slate-200 flex flex-col transition-colors">
-              <span class="font-bold text-teal-600 dark:text-teal-400">3. Pediatric Rx Handwriting</span>
-              <span class="text-[11px] text-slate-400">Illegible doctor script & weight safety</span>
-            </button>
-            <button onclick="loadScenario('discharge_stack_clash')" class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-200 flex flex-col transition-colors">
-              <span class="font-bold text-blue-600 dark:text-blue-400">4. Complex Discharge Stack</span>
-              <span class="text-[11px] text-slate-400">Duplicate meds reconciliation & timetable</span>
-            </button>
-          </div>
+        <!-- Mayo Clinic Standard Protocol Badge -->
+        <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-[11px] font-bold text-blue-700 dark:text-blue-300">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-600 dark:text-blue-400"></i>
+          <span>Mayo Clinic Standard</span>
         </div>
 
         <!-- Theme Toggle Switch -->
@@ -446,17 +424,90 @@
     <!-- RIGHT PANEL: VERIFIED CLINICAL ACTIONS & INTEROPERABILITY (Cols 7) -->
     <section class="lg:col-span-7 flex flex-col gap-4">
       
-      <!-- Placeholder Welcome State -->
-      <div id="welcomeState" class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-4 transition-colors">
-        <div class="w-16 h-16 rounded-2xl bg-teal-100 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-800/50 flex items-center justify-center text-teal-600 dark:text-teal-400">
-          <i data-lucide="heart-pulse" class="w-8 h-8"></i>
+      <!-- MAYO CLINIC CLINICAL PORTAL WELCOME HERO -->
+      <div id="welcomeState" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 lg:p-8 shadow-sm dark:shadow-2xl flex flex-col gap-6 transition-all">
+        
+        <!-- Header Banner -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-blue-700 to-teal-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 flex-shrink-0">
+              <i data-lucide="shield-check" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-base font-extrabold text-slate-900 dark:text-white">Mayo Clinic Diagnostic Command</h3>
+                <span class="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-300">LIVE SYSTEM</span>
+              </div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Evidence-based clinical decision support, pharmacovigilance & discharge hub</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+            <span>ICD-10-CM</span> • <span>HL7 FHIR R4</span>
+          </div>
         </div>
-        <div class="max-w-md">
-          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">Clinical Bridge Ready for Intake</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Upload an image, record voice dictation, or enter patient data on the left to verify lethal drug clashes, generate emergency triage, formulate a 24-hour schedule, and export interoperable FHIR R4 records.
-          </p>
+
+        <!-- 4 Medical Department Visual Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          
+          <!-- Cardiology -->
+          <div class="p-4 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/40 flex items-start gap-3.5 hover:border-rose-300 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/60 flex items-center justify-center text-rose-600 dark:text-rose-400 flex-shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/><path d="M12 5v14"/></svg>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-slate-900 dark:text-white">Cardiovascular Medicine</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Acute STEMI, hypertension, angina, and antiplatelet therapy reconciliation.</p>
+            </div>
+          </div>
+
+          <!-- Pulmonology -->
+          <div class="p-4 rounded-2xl bg-cyan-50/50 dark:bg-cyan-950/20 border border-cyan-200/60 dark:border-cyan-900/40 flex items-start gap-3.5 hover:border-cyan-300 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-cyan-100 dark:bg-cyan-900/60 flex items-center justify-center text-cyan-600 dark:text-cyan-400 flex-shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><path d="M4 21h16"/><path d="M12 16v5"/></svg>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-slate-900 dark:text-white">Pulmonary & Respiratory</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Pneumonia, acute asthma bronchospasm, SpO2 monitoring & inhaler chrono-dosing.</p>
+            </div>
+          </div>
+
+          <!-- Neurology -->
+          <div class="p-4 rounded-2xl bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-900/40 flex items-start gap-3.5 hover:border-purple-300 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/60 flex items-center justify-center text-purple-600 dark:text-purple-400 flex-shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-2.04z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-2.04z"/></svg>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-slate-900 dark:text-white">Neurology & Stroke Triage</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Time-critical CVA triage, migraine therapeutics, and emergency EMS protocol.</p>
+            </div>
+          </div>
+
+          <!-- Pharmacotherapy -->
+          <div class="p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-200/60 dark:border-teal-900/40 flex items-start gap-3.5 hover:border-teal-300 transition-all">
+            <div class="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-900/60 flex items-center justify-center text-teal-600 dark:text-teal-400 flex-shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg>
+            </div>
+            <div>
+              <h4 class="text-xs font-bold text-slate-900 dark:text-white">Pharmacological Safety</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Drug-drug contraindication interceptor, bioequivalent generics, and pill visual guide.</p>
+            </div>
+          </div>
+
         </div>
+
+        <!-- Getting Started Guide -->
+        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="flex items-center gap-2.5">
+            <i data-lucide="clipboard-pen" class="w-5 h-5 text-teal-600 dark:text-teal-400 flex-shrink-0"></i>
+            <span class="text-xs text-slate-700 dark:text-slate-300 font-medium">
+              Enter your real symptoms, upload an Rx photo, or record voice dictation on the left to begin diagnosis.
+            </span>
+          </div>
+          <button onclick="switchInputTab('custom')" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex-shrink-0 shadow-sm transition-all">
+            Open Patient Form
+          </button>
+        </div>
+
       </div>
 
       <!-- Loading State -->
@@ -560,6 +611,26 @@
               <span class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 uppercase tracking-wider flex items-center gap-1">
                 <i data-lucide="award" class="w-3 h-3 text-teal-500"></i> Mayo Clinic Format
               </span>
+            </div>
+          </div>
+
+          <!-- Mayo Clinic Anatomical System Visual Banner -->
+          <div id="mayoAnatomyBanner" class="p-3.5 rounded-2xl bg-gradient-to-r from-blue-50/90 via-slate-50 to-teal-50/90 dark:from-slate-950 dark:via-slate-900 dark:to-teal-950/40 border border-blue-200/80 dark:border-blue-900/40 flex items-center justify-between gap-4 mb-3.5 shadow-sm">
+            <div class="flex items-center gap-3.5">
+              <div id="mayoAnatomyIconBox" class="w-14 h-14 rounded-2xl bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800/80 flex items-center justify-center p-2 text-blue-600 dark:text-blue-400 flex-shrink-0 shadow-sm">
+                <!-- Dynamically populated Anatomical System SVG -->
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span id="mayoDepartmentTag" class="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">Mayo Clinic Cardiology</span>
+                  <span class="text-[10px] text-slate-400 font-mono">Clinical Protocol</span>
+                </div>
+                <div id="mayoPathologySubtitle" class="text-xs font-bold text-slate-900 dark:text-white mt-0.5">Anatomical System Telemetry</div>
+              </div>
+            </div>
+            <div id="mayoSystemBadge" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono font-bold text-teal-700 dark:text-teal-400 shadow-sm">
+              <i data-lucide="activity" class="w-3.5 h-3.5 text-teal-500 animate-pulse"></i>
+              <span id="mayoSystemMetric">Organ System Active</span>
             </div>
           </div>
 
