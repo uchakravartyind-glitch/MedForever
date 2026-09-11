@@ -922,6 +922,7 @@ function switchQrFormat(format) {
 
 function generateHealthCardQr(patient, meds, triage = {}, format = 'text') {
   const qrDiv = document.getElementById("qrcode");
+  const previewDiv = document.getElementById("qrTextPreview");
   if (!qrDiv) return;
   qrDiv.innerHTML = "";
 
@@ -967,14 +968,18 @@ function generateHealthCardQr(patient, meds, triage = {}, format = 'text') {
         frequency: m.frequency
       }))
     };
-    qrContent = JSON.stringify(jsonPayload);
+    qrContent = JSON.stringify(jsonPayload, null, 2);
+  }
+
+  if (previewDiv) {
+    previewDiv.innerText = qrContent;
   }
 
   try {
     new QRCode(qrDiv, {
       text: qrContent,
-      width: 220,
-      height: 220,
+      width: 200,
+      height: 200,
       colorDark: "#090d16",
       colorLight: "#ffffff",
       correctLevel: QRCode.CorrectLevel.M
@@ -982,6 +987,19 @@ function generateHealthCardQr(patient, meds, triage = {}, format = 'text') {
   } catch (e) {
     console.error("QR Code Error:", e);
   }
+}
+
+function copyQrText() {
+  const previewDiv = document.getElementById("qrTextPreview");
+  const copyBtn = document.getElementById("copyQrBtnText");
+  if (!previewDiv) return;
+
+  navigator.clipboard.writeText(previewDiv.innerText).then(() => {
+    if (copyBtn) copyBtn.innerText = "Copied!";
+    setTimeout(() => {
+      if (copyBtn) copyBtn.innerText = "Copy Note";
+    }, 2000);
+  });
 }
 
 function openHealthCardModal() {

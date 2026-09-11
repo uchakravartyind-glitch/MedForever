@@ -1,7 +1,7 @@
 """
 Curated realistic messy medical scenarios for 1-click evaluation & demonstration.
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 
 DEMO_SCENARIOS: Dict[str, Dict[str, Any]] = {
     "fatal_drug_clash": {
@@ -378,9 +378,9 @@ DEMO_SCENARIOS: Dict[str, Dict[str, Any]] = {
     }
 }
 
-def get_demo_scenario(scenario_id: str) -> Dict[str, Any]:
-    """Retrieve demo scenario by ID or return default."""
-    return DEMO_SCENARIOS.get(scenario_id, DEMO_SCENARIOS["fatal_drug_clash"])
+def get_demo_scenario(scenario_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve demo scenario by ID or return None if not found."""
+    return DEMO_SCENARIOS.get(scenario_id)
 
 def list_demo_scenarios():
     """Return catalog of available demo scenarios."""

@@ -182,4 +182,26 @@ def test_printable_report_with_mayo_profile():
     assert "ICD-10:" in html
     assert "Diagnostic" in html
 
+def test_api_health_endpoint():
+    """Verify health endpoint returns 200 OK and service metadata."""
+    res = client.get("/api/health")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "healthy"
+    assert "MedForever" in data["service"]
+    assert "FHIR R4" in data["interoperability"]
+
+def test_security_headers():
+    """Verify enterprise security headers are present in HTTP response."""
+    res = client.get("/")
+    assert res.status_code == 200
+    assert res.headers.get("X-Content-Type-Options") == "nosniff"
+    assert res.headers.get("X-Frame-Options") == "SAMEORIGIN"
+    assert res.headers.get("X-XSS-Protection") == "1; mode=block"
+
+def test_nonexistent_scenario_returns_404():
+    """Verify 404 is properly returned for invalid scenario ID."""
+    res = client.get("/api/scenarios/invalid_scenario_id_999")
+    assert res.status_code == 404
+
 
