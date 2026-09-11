@@ -53,37 +53,6 @@ It takes **messy, unstructured real-world medical data** (illegible handwritten 
 
 ---
 
-## 🚀 Quickstart Guide
-
-### 1. Clone Repository
-```bash
-git clone https://github.com/uchakravartyind-glitch/MedForever.git
-cd MedForever
-```
-
-### 2. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 3. (Optional) Configure Gemini API Key
-```bash
-cp .env.example .env
-# Add GEMINI_API_KEY in .env, or enter it directly via the web UI header
-```
-
-### 4. Run the Application
-```bash
-python run.py
-```
-*The app will start on `http://127.0.0.1:8000` and automatically open in your browser.*
-
-### 5. Run Automated Tests
-```bash
-pytest -v tests/test_api.py
-```
-
----
 
 ## 📂 Project Structure
 
