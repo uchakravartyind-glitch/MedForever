@@ -15,10 +15,11 @@ from .demo_data import get_demo_scenario
 from .pill_catalog import enrich_medication_pill_info
 from .environmental_service import analyze_environmental_risks
 from .emergency_router import get_nearby_emergency_resources
+from .clinical_intelligence import analyze_patient_clinical_input
 
 SYSTEM_CLINICAL_PROMPT = """You are MedForever - an advanced, life-saving Clinical AI & Multimodal Medical Bridge developed for Google for Developers Build with AI.
 
-Your mission is to take messy, unstructured, real-world inputs (illegible handwritten doctor prescriptions, frantic emergency voice recordings, crumpled pill packaging, complex discharge summaries, and patient history stacks) and transform them into structured, verified, life-saving clinical intelligence.
+Your mission is to take messy, unstructured, real-world inputs (patient symptoms, prescription notes, vitals, voice dictation, discharge summaries) and transform them into structured, verified, life-saving clinical intelligence matching Mayo Clinic format.
 
 Strictly output your response as valid, parseable JSON matching the following schema. Do NOT include markdown code fences (```json ... ```) or any extraneous conversational text. Output pure JSON only.
 
@@ -41,6 +42,17 @@ Strictly output your response as valid, parseable JSON matching the following sc
     "gender": "Male" | "Female" | "Unknown",
     "allergies": ["Allergy 1", "Allergy 2"],
     "pre_existing_conditions": ["Condition 1", "Condition 2"]
+  },
+  "condition_profile": {
+    "name": "Clinical Disease / Condition Name",
+    "icd10": "ICD-10 Code",
+    "category": "Medical Category",
+    "overview": "Mayo Clinic style clinical overview",
+    "symptoms": ["Key symptom 1", "Key symptom 2"],
+    "causes": ["Etiological factor 1", "Etiological factor 2"],
+    "diagnostic_tests": ["Test 1", "Test 2"],
+    "red_flags": ["Emergency danger sign 1", "Emergency danger sign 2"],
+    "home_care": "Guidance and precautions"
   },
   "medications": [
     {
@@ -143,6 +155,7 @@ def analyze_multimodal_input(
             text_notes=text_notes,
             patient_history=patient_history,
             patient_allergies=patient_allergies,
+            vitals=vitals,
             target_language=target_language
         )
 
@@ -150,9 +163,10 @@ def analyze_multimodal_input(
     if "patient" not in result:
         result["patient"] = {}
     if patient_photo:
-        result["patient"]["photo"] = patient_photo
+        result["patient"]["photo_base64"] = patient_photo
     if vitals:
         result["patient"]["vitals"] = vitals
+        result["vitals"] = vitals
 
     # 1. Deterministic Pharmacological Safety Validation
     allergies = result.get("patient", {}).get("allergies", [])
@@ -164,6 +178,9 @@ def analyze_multimodal_input(
 
     safety_check = check_drug_safety(result.get("medications", []), allergies)
     
+    if "safety_analysis" not in result:
+        result["safety_analysis"] = {"interactions": [], "allergy_conflicts": []}
+
     if safety_check["interactions"]:
         existing_titles = [x.get("title") for x in result.get("safety_analysis", {}).get("interactions", [])]
         for item in safety_check["interactions"]:
@@ -188,19 +205,32 @@ def analyze_multimodal_input(
         enriched_meds.append(enrich_medication_pill_info(med))
     result["medications"] = enriched_meds
 
-    # 3. Enrich with Environmental Contextual Risk Analysis
-    conditions = result.get("patient", {}).get("pre_existing_conditions", [])
-    result["environmental_context"] = analyze_environmental_risks(conditions)
-
     # 4. Enrich with Emergency Facilities & Verified 24/7 Pharmacies
     triage_level = result.get("triage", {}).get("level", "GREEN")
-    result["emergency_facilities"] = get_nearby_emergency_resources(
+    result["nearby_emergency_resources"] = get_nearby_emergency_resources(
         triage_level=triage_level,
         lat=location_lat,
         lon=location_lon,
         country_code=country_code,
         city=city
     )
+
+    # 5. Enrich with Mayo Clinic Condition Profile & ICD-10 Workup
+    if "condition_profile" not in result or not result["condition_profile"]:
+        from backend.clinical_intelligence import match_symptoms_to_condition
+        combined_text = f"{text_notes or ''} {patient_history or ''} {result.get('triage', {}).get('title', '')}"
+        cond, _ = match_symptoms_to_condition(combined_text)
+        result["condition_profile"] = {
+            "name": cond["condition_name"],
+            "icd10": cond["icd10"],
+            "category": cond["category"],
+            "overview": cond["mayo_overview"],
+            "symptoms": cond["mayo_symptoms"],
+            "causes": cond["mayo_causes"],
+            "diagnostic_tests": cond["diagnostic_tests"],
+            "red_flags": cond["red_flags"],
+            "home_care": cond["home_care"]
+        }
 
     return result
 
@@ -215,22 +245,21 @@ def _call_gemini_api(
     country_code: Optional[str] = None,
     city: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
-    """Calls Gemini 2.5 Flash / 1.5 Flash via REST API."""
-    model_name = DEFAULT_GEMINI_MODEL
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+    """Calls Gemini Flash via REST API with fallback models and JSON extraction."""
+    models_to_try = [DEFAULT_GEMINI_MODEL, "gemini-1.5-flash", "gemini-2.0-flash"]
     
     parts = []
-    user_prompt = "Analyze these real-world medical inputs and generate structured clinical intelligence.\n"
+    user_prompt = "Analyze these real patient medical inputs and generate structured clinical intelligence.\n"
     if city or country_code:
         user_prompt += f"\n--- Patient Location Context: {city or ''} {country_code or ''} ---\n"
     if text_notes:
-        user_prompt += f"\n--- Unstructured Doctor Notes / Prescription Text ---\n{text_notes}\n"
+        user_prompt += f"\n--- Patient Symptoms, Prescriptions & Case Notes ---\n{text_notes}\n"
     if patient_history:
         user_prompt += f"\n--- Patient Medical History / Pre-existing Conditions ---\n{patient_history}\n"
     if patient_allergies:
         user_prompt += f"\n--- Known Patient Allergies ---\n{patient_allergies}\n"
     if target_language and target_language != "en":
-        user_prompt += f"\n--- Translation Note ---\nTranslate the 'patient_friendly_guide' into language code: '{target_language}'.\n"
+        user_prompt += f"\n--- Translation Note ---\nTranslate the 'patient_friendly_guide' and explanations into language code: '{target_language}'.\n"
 
     parts.append({"text": user_prompt})
 
@@ -260,24 +289,29 @@ def _call_gemini_api(
     }
 
     headers = {"Content-Type": "application/json"}
-    response = requests.post(url, json=payload, headers=headers, timeout=30)
-    
-    if response.status_code == 200:
-        data = response.json()
-        candidates = data.get("candidates", [])
-        if candidates:
-            content_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-            return json.loads(content_text)
-    else:
-        if model_name != "gemini-1.5-flash":
-            fallback_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-            fb_response = requests.post(fallback_url, json=payload, headers=headers, timeout=30)
-            if fb_response.status_code == 200:
-                data = fb_response.json()
+
+    for model_name in models_to_try:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+            response = requests.post(url, json=payload, headers=headers, timeout=25)
+            if response.status_code == 200:
+                data = response.json()
                 candidates = data.get("candidates", [])
                 if candidates:
                     content_text = candidates[0].get("content", {}).get("parts", [{}])[0].get("text", "")
-                    return json.loads(content_text)
+                    clean_json = content_text.strip()
+                    if clean_json.startswith("```json"):
+                        clean_json = clean_json[7:]
+                    if clean_json.startswith("```"):
+                        clean_json = clean_json[3:]
+                    if clean_json.endswith("```"):
+                        clean_json = clean_json[:-3]
+                    clean_json = clean_json.strip()
+                    return json.loads(clean_json)
+        except Exception as err:
+            print(f"Model {model_name} attempt: {err}")
+            continue
+
     return None
 
 def _smart_clinical_fallback(
@@ -286,30 +320,18 @@ def _smart_clinical_fallback(
     text_notes: Optional[str] = None,
     patient_history: Optional[str] = None,
     patient_allergies: Optional[str] = None,
+    vitals: Optional[Dict[str, Any]] = None,
     target_language: str = "en"
 ) -> Dict[str, Any]:
-    """Smart heuristic clinical parser when offline or processing test inputs."""
-    combined_text = f"{text_notes or ''} {patient_history or ''} {patient_allergies or ''}".lower()
-    
-    is_cardiac = any(w in combined_text for w in ["chest pain", "heart", "stemi", "cardiac", "elephant", "angina", "arm pain", "jaw"])
-    is_pediatric = any(w in combined_text for w in ["child", "pediatric", "syr", "syrup", "6yo", "8yo", "infant", "calpol", "novamox", "amox"])
-    is_discharge = any(w in combined_text for w in ["discharge", "glucophage", "metformin", "lisinopril", "losartan", "post-op"])
-    
-    if is_cardiac:
-        base = get_demo_scenario("frantic_voice_triage")
-    elif is_pediatric:
-        base = get_demo_scenario("pediatric_handwriting")
-    elif is_discharge:
-        base = get_demo_scenario("discharge_stack_clash")
-    else:
-        base = get_demo_scenario("fatal_drug_clash")
-
-    res = json.loads(json.dumps(base))
-    if patient_allergies:
-        allergies_list = [a.strip() for a in patient_allergies.split(",") if a.strip()]
-        res["patient"]["allergies"] = allergies_list
-    if patient_history:
-        history_list = [h.strip() for h in patient_history.split(",") if h.strip()]
-        res["patient"]["pre_existing_conditions"] = history_list
-
-    return res
+    """
+    Comprehensive Diagnostic Reasoning Engine:
+    Parses the user's actual symptoms, identifies diseases/conditions,
+    calculates clinical urgency, extracts medications, and structures Mayo Clinic profiles.
+    """
+    return analyze_patient_clinical_input(
+        text_notes=text_notes,
+        patient_history=patient_history,
+        patient_allergies=patient_allergies,
+        vitals=vitals,
+        target_language=target_language
+    )

@@ -148,68 +148,82 @@ async def emergency_lookup(req: LocationLookupRequest):
 
 
 @app.post("/api/analyze")
-async def analyze_input(
-    payload: Optional[AnalyzeRequest] = None,
-    image_file: Optional[UploadFile] = File(None),
-    patient_photo_file: Optional[UploadFile] = File(None),
-    audio_file: Optional[UploadFile] = File(None),
-    text_notes: Optional[str] = Form(None),
-    patient_history: Optional[str] = Form(None),
-    patient_allergies: Optional[str] = Form(None),
-    target_language: str = Form("en"),
-    country_code: Optional[str] = Form(None),
-    city: Optional[str] = Form(None),
-    location_lat: Optional[float] = Form(None),
-    location_lon: Optional[float] = Form(None),
-    vitals_json: Optional[str] = Form(None)
-):
+async def analyze_input(request: Request):
     """
     Multimodal analysis endpoint supporting JSON payload or Multipart Form uploads.
     """
     image_b64 = None
     photo_b64 = None
     audio_b64 = None
-    notes = text_notes
-    history = patient_history
-    allergies = patient_allergies
-    lang = target_language
+    notes = None
+    history = None
+    allergies = None
+    lang = "en"
     vitals = None
-    lat = location_lat
-    lon = location_lon
-    c_code = country_code
-    c_city = city
+    lat = None
+    lon = None
+    c_code = None
+    c_city = None
 
-    if payload:
-        image_b64 = payload.image_data
-        photo_b64 = payload.patient_photo
-        audio_b64 = payload.audio_data
-        notes = payload.text_notes or notes
-        history = payload.patient_history or history
-        allergies = payload.patient_allergies or allergies
-        lang = payload.target_language or lang
-        vitals = payload.vitals
-        lat = payload.location_lat or lat
-        lon = payload.location_lon or lon
-        c_code = payload.country_code or c_code
-        c_city = payload.city or c_city
-
-    if image_file:
-        img_bytes = await image_file.read()
-        image_b64 = f"data:{image_file.content_type};base64,{base64.b64encode(img_bytes).decode('utf-8')}"
-        
-    if patient_photo_file:
-        photo_bytes = await patient_photo_file.read()
-        photo_b64 = f"data:{patient_photo_file.content_type};base64,{base64.b64encode(photo_bytes).decode('utf-8')}"
-
-    if audio_file:
-        aud_bytes = await audio_file.read()
-        audio_b64 = f"data:{audio_file.content_type};base64,{base64.b64encode(aud_bytes).decode('utf-8')}"
-
-    if vitals_json and not vitals:
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
         try:
-            vitals = json.loads(vitals_json)
-        except Exception:
-            pass
+            body_json = await request.json()
+            image_b64 = body_json.get("image_data")
+            photo_b64 = body_json.get("patient_photo")
+            audio_b64 = body_json.get("audio_data")
+            notes = body_json.get("text_notes")
+            history = body_json.get("patient_history")
+            allergies = body_json.get("patient_allergies")
+            lang = body_json.get("target_language", "en")
+            vitals = body_json.get("vitals")
+            lat = body_json.get("location_lat")
+            lon = body_json.get("location_lon")
+            c_code = body_json.get("country_code")
+            c_city = body_json.get("city")
+        except Exception as e:
+            print(f"[Analyze JSON Parse Error] {e}")
+    else:
+        try:
+            form = await request.form()
+            notes = form.get("text_notes")
+            history = form.get("patient_history")
+            allergies = form.get("patient_allergies")
+            lang = form.get("target_language") or "en"
+            c_code = form.get("country_code")
+            c_city = form.get("city")
+            if form.get("location_lat"):
+                try: lat = float(form.get("location_lat"))
+                except Exception: pass
+            if form.get("location_lon"):
+                try: lon = float(form.get("location_lon"))
+                except Exception: pass
+            if form.get("vitals_json"):
+                try: vitals = json.loads(form.get("vitals_json"))
+                except Exception: pass
+
+            image_file = form.get("image_file")
+            if image_file and hasattr(image_file, "read"):
+                img_bytes = await image_file.read()
+                if img_bytes:
+                    ct = getattr(image_file, "content_type", "image/jpeg")
+                    image_b64 = f"data:{ct};base64,{base64.b64encode(img_bytes).decode('utf-8')}"
+
+            patient_photo_file = form.get("patient_photo_file")
+            if patient_photo_file and hasattr(patient_photo_file, "read"):
+                photo_bytes = await patient_photo_file.read()
+                if photo_bytes:
+                    ct = getattr(patient_photo_file, "content_type", "image/jpeg")
+                    photo_b64 = f"data:{ct};base64,{base64.b64encode(photo_bytes).decode('utf-8')}"
+
+            audio_file = form.get("audio_file")
+            if audio_file and hasattr(audio_file, "read"):
+                aud_bytes = await audio_file.read()
+                if aud_bytes:
+                    ct = getattr(audio_file, "content_type", "audio/mp3")
+                    audio_b64 = f"data:{ct};base64,{base64.b64encode(aud_bytes).decode('utf-8')}"
+        except Exception as e:
+            print(f"[Analyze Form Parse Error] {e}")
 
     result = analyze_multimodal_input(
         image_data=image_b64,

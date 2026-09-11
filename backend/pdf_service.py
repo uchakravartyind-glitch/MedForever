@@ -48,6 +48,42 @@ def generate_printable_report_html(data: Dict[str, Any]) -> str:
         </tr>
         """
 
+    cond = data.get("condition_profile", {})
+    cond_html = ""
+    if cond and cond.get("name"):
+        symptoms_li = "".join([f"<li>{s}</li>" for s in cond.get("symptoms", [])])
+        tests_li = "".join([f"<li>{t}</li>" for t in cond.get("diagnostic_tests", [])])
+        red_flags_li = "".join([f"<li style='color: #dc2626;'>{rf}</li>" for rf in cond.get("red_flags", [])])
+        
+        cond_html = f"""
+        <div class="card" style="margin-bottom: 12px; border-left: 4px solid #0284c7; background: #f0f9ff;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <h3 style="margin: 0; font-size: 12px; text-transform: uppercase; color: #0369a1; font-weight: bold;">
+                    📖 Mayo Clinic Clinical Impression: {cond.get('name', '')}
+                </h3>
+                <span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 10px; font-family: monospace;">
+                    ICD-10: {cond.get('icd10', 'N/A')} | {cond.get('category', 'General Medicine')}
+                </span>
+            </div>
+            <p style="margin: 2px 0 8px 0; font-size: 11px; color: #1e293b; line-height: 1.4;">{cond.get('overview', '')}</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 10.5px;">
+                <div style="background: #ffffff; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                    <strong style="color: #0369a1;">Observed Symptoms:</strong>
+                    <ul style="margin: 4px 0 0 0; padding-left: 14px;">{symptoms_li}</ul>
+                </div>
+                <div style="background: #ffffff; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                    <strong style="color: #0369a1;">Diagnostic Tests:</strong>
+                    <ul style="margin: 4px 0 0 0; padding-left: 14px;">{tests_li}</ul>
+                </div>
+                <div style="background: #ffffff; padding: 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                    <strong style="color: #dc2626;">Red Flags & Care:</strong>
+                    <ul style="margin: 4px 0 0 0; padding-left: 14px;">{red_flags_li}</ul>
+                    <p style="margin: 4px 0 0 0; font-size: 10px; color: #475569;"><strong>Care:</strong> {cond.get('home_care', '')}</p>
+                </div>
+            </div>
+        </div>
+        """
+
     interactions_html = ""
     all_alerts = (safety.get("allergy_conflicts", []) + safety.get("interactions", []))
     if all_alerts:
@@ -130,6 +166,8 @@ def generate_printable_report_html(data: Dict[str, Any]) -> str:
             </div>
         </div>
     </div>
+
+    {cond_html}
 
     <div style="margin-bottom: 12px;">
         <h3 style="margin: 0 0 4px 0; font-size: 13px; text-transform: uppercase; color: #0f172a; font-weight: bold;">🛡️ Pharmacological Safety & Interaction Matrix</h3>

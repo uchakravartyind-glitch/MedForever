@@ -122,4 +122,64 @@ def test_analyze_real_user_data():
     assert "hl7_message" in data
     assert data["analysis"]["triage"]["level"] in ["RED", "AMBER", "GREEN"]
     assert "safety_analysis" in data["analysis"]
+    assert "condition_profile" in data["analysis"]
+    assert data["analysis"]["condition_profile"]["name"] is not None
+
+def test_clinical_diagnostic_engine_cardiac_emergency():
+    """Verify diagnostic matching for acute chest pain symptoms to STEMI (RED)."""
+    payload = {
+        "text_notes": "Patient: Marcus Vance, 58yo Male. Sudden crushing chest pain radiating to left arm and jaw, sweating profusely.",
+        "patient_history": "Hypertension, Hyperlipidemia",
+        "target_language": "en"
+    }
+    res = client.post("/api/analyze", json=payload)
+    assert res.status_code == 200
+    data = res.json()["analysis"]
+    assert data["triage"]["level"] == "RED"
+    assert "Coronary" in data["condition_profile"]["name"] or "STEMI" in data["condition_profile"]["name"]
+    assert data["condition_profile"]["icd10"] == "I21.9"
+    assert len(data["condition_profile"]["diagnostic_tests"]) > 0
+
+def test_clinical_diagnostic_engine_respiratory_pneumonia():
+    """Verify diagnostic matching for productive cough, fever, chills to Pneumonia (AMBER)."""
+    payload = {
+        "text_notes": "Patient: Rahul Sharma, 34yo Male. High fever, chills, productive cough with yellow phlegm for 4 days. Prescribed: Azithromycin 500mg, Paracetamol 650mg.",
+        "patient_allergies": "None",
+        "target_language": "en"
+    }
+    res = client.post("/api/analyze", json=payload)
+    assert res.status_code == 200
+    data = res.json()["analysis"]
+    assert data["triage"]["level"] in ["AMBER", "RED"]
+    assert "Pneumonia" in data["condition_profile"]["name"]
+    assert data["condition_profile"]["icd10"] == "J18.9"
+    assert "Azithromycin" in [m.get("generic_name") or m.get("brand_name") for m in data["medications"]] or "Paracetamol" in [m.get("generic_name") or m.get("brand_name") for m in data["medications"]]
+
+def test_clinical_diagnostic_engine_minor_cold():
+    """Verify diagnostic matching for minor cold symptoms to Common Cold (GREEN)."""
+    payload = {
+        "text_notes": "Patient: Elena Rostova, 28yo Female. Runny nose, sneezing, mild throat tickle for 2 days. Prescribed: Cetirizine 10mg.",
+        "target_language": "en"
+    }
+    res = client.post("/api/analyze", json=payload)
+    assert res.status_code == 200
+    data = res.json()["analysis"]
+    assert data["triage"]["level"] == "GREEN"
+    assert "Cold" in data["condition_profile"]["name"] or "Rhinitis" in data["condition_profile"]["name"]
+    assert data["condition_profile"]["icd10"] in ["J00", "J06.9", "J30.9"]
+
+def test_printable_report_with_mayo_profile():
+    """Verify Mayo Clinic profile is rendered in printable discharge HTML."""
+    from backend.clinical_intelligence import analyze_patient_clinical_input
+    from backend.pdf_service import generate_printable_report_html
+    
+    sample_analysis = analyze_patient_clinical_input(
+        text_notes="Patient: John Doe, 40yo. Productive cough, fever, yellow phlegm. Prescribed: Amoxicillin 500mg.",
+        patient_allergies="None"
+    )
+    html = generate_printable_report_html(sample_analysis)
+    assert "Mayo Clinic Clinical Impression" in html
+    assert "ICD-10:" in html
+    assert "Diagnostic Tests:" in html
+
 

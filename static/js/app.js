@@ -645,7 +645,74 @@ function renderResults(data, fhirBundle, hl7Message) {
     triageIconBox.className = "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700/60";
   }
 
-  // 3. Pharmacological Safety Matrix
+  // 3. Mayo Clinic Condition Profile & Diagnostic Workup
+  const condProfile = data.condition_profile || {};
+  const mayoTitle = document.getElementById("mayoConditionTitle");
+  const mayoIcd = document.getElementById("mayoIcdBadge");
+  const mayoCategory = document.getElementById("mayoCategoryBadge");
+  const mayoOverview = document.getElementById("mayoOverviewText");
+  const mayoSymptoms = document.getElementById("mayoSymptomsList");
+  const mayoCauses = document.getElementById("mayoCausesList");
+  const mayoTests = document.getElementById("mayoTestsList");
+  const mayoUrgent = document.getElementById("mayoUrgentList");
+  const mayoCare = document.getElementById("mayoCareText");
+
+  if (mayoTitle) mayoTitle.innerText = condProfile.name || triage.title || "Clinical Assessment";
+  if (mayoIcd) mayoIcd.innerText = `ICD-10: ${condProfile.icd10 || 'R69'}`;
+  if (mayoCategory) mayoCategory.innerText = condProfile.category || "General Clinical Medicine";
+  if (mayoOverview) mayoOverview.innerText = condProfile.overview || triage.summary || "Clinical assessment completed.";
+
+  if (mayoSymptoms) {
+    mayoSymptoms.innerHTML = "";
+    (condProfile.symptoms || []).forEach(s => {
+      const li = document.createElement("li");
+      li.className = "flex items-start gap-1.5";
+      li.innerHTML = `<span class="text-teal-500 font-bold">•</span> <span>${s}</span>`;
+      mayoSymptoms.appendChild(li);
+    });
+    if (!condProfile.symptoms || condProfile.symptoms.length === 0) {
+      mayoSymptoms.innerHTML = `<li class="text-slate-400 italic">No acute physical distress documented.</li>`;
+    }
+  }
+
+  if (mayoCauses) {
+    mayoCauses.innerHTML = "";
+    (condProfile.causes || []).forEach(c => {
+      const li = document.createElement("li");
+      li.className = "flex items-start gap-1.5";
+      li.innerHTML = `<span class="text-slate-400 font-bold">•</span> <span>${c}</span>`;
+      mayoCauses.appendChild(li);
+    });
+  }
+
+  if (mayoTests) {
+    mayoTests.innerHTML = "";
+    (condProfile.diagnostic_tests || []).forEach(t => {
+      const li = document.createElement("li");
+      li.className = "flex items-start gap-1.5";
+      li.innerHTML = `<i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-blue-500 flex-shrink-0 mt-0.5"></i> <span>${t}</span>`;
+      mayoTests.appendChild(li);
+    });
+    if (!condProfile.diagnostic_tests || condProfile.diagnostic_tests.length === 0) {
+      mayoTests.innerHTML = `<li class="text-slate-400 italic">Standard vital signs monitoring indicated.</li>`;
+    }
+  }
+
+  if (mayoUrgent) {
+    mayoUrgent.innerHTML = "";
+    (condProfile.red_flags || []).forEach(rf => {
+      const li = document.createElement("li");
+      li.className = "flex items-start gap-1.5";
+      li.innerHTML = `<i data-lucide="alert-circle" class="w-3.5 h-3.5 text-red-500 flex-shrink-0 mt-0.5"></i> <span>${rf}</span>`;
+      mayoUrgent.appendChild(li);
+    });
+  }
+
+  if (mayoCare) {
+    mayoCare.innerText = condProfile.home_care || guide.lifestyle_precautions || "Follow doctor's prescription strictly and maintain hydration.";
+  }
+
+  // 4. Pharmacological Safety Matrix
   const safetyBadge = document.getElementById("safetyBadge");
   safetyBadge.innerText = safety.badge || (safety.status === "CRITICAL_HAZARD" ? "LETHAL INTERACTION DETECTED" : "Prescription Verified");
   if (safety.color === "red" || safety.status === "CRITICAL_HAZARD") {
