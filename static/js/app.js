@@ -1,6 +1,7 @@
 /**
- * MedForever Frontend Application Logic v2.0
+ * MedForever Frontend Application Logic v3.0
  * Universal Multimodal Medical Bridge
+ * Features: Light/Dark Theme, 14+ Languages, Direct PDF Download, Pure QR Card, Custom Patient Builder
  */
 
 let currentAnalysisData = null;
@@ -15,27 +16,71 @@ let recordSeconds = 0;
 let cameraStream = null;
 let currentInteropTab = 'fhir';
 
+// Multi-lingual Translation & Voice Mapping
+const LANGUAGE_CONFIG = {
+  en: { name: "English", voiceLang: "en-US" },
+  hi: { name: "Hindi (हिंदी)", voiceLang: "hi-IN" },
+  bn: { name: "Bengali (বাংলা)", voiceLang: "bn-IN" },
+  es: { name: "Spanish (Español)", voiceLang: "es-ES" },
+  fr: { name: "French (Français)", voiceLang: "fr-FR" },
+  de: { name: "German (Deutsch)", voiceLang: "de-DE" },
+  te: { name: "Telugu (తెలుగు)", voiceLang: "te-IN" },
+  ta: { name: "Tamil (தமிழ்)", voiceLang: "ta-IN" },
+  mr: { name: "Marathi (मराठी)", voiceLang: "mr-IN" },
+  gu: { name: "Gujarati (ગુજરાતી)", voiceLang: "gu-IN" },
+  ar: { name: "Arabic (العربية)", voiceLang: "ar-SA" },
+  zh: { name: "Mandarin (中文)", voiceLang: "zh-CN" },
+  pt: { name: "Portuguese (Português)", voiceLang: "pt-BR" },
+  ja: { name: "Japanese (日本語)", voiceLang: "ja-JP" }
+};
+
+// Initialize on DOM load
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
   if (window.lucide) {
     window.lucide.createIcons();
   }
   checkApiKeyStatus();
 });
 
-// Tab Switching (Image / Audio / Text)
+// Theme Management (Light / Dark Mode)
+function initTheme() {
+  const savedTheme = localStorage.getItem("medforever_theme") || "dark";
+  if (savedTheme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+  updateThemeIcon();
+}
+
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle("dark");
+  localStorage.setItem("medforever_theme", isDark ? "dark" : "light");
+  updateThemeIcon();
+}
+
+function updateThemeIcon() {
+  const isDark = document.documentElement.classList.contains("dark");
+  const icon = document.getElementById("themeIcon");
+  if (icon) {
+    icon.setAttribute("data-lucide", isDark ? "sun" : "moon");
+    if (window.lucide) window.lucide.createIcons();
+  }
+}
+
+// Tab Switching (Image / Audio / Custom / Text)
 function switchInputTab(tab) {
-  const tabs = ['image', 'audio', 'text'];
+  const tabs = ['image', 'audio', 'custom', 'text'];
   tabs.forEach(t => {
     const content = document.getElementById(`tabContent${t.charAt(0).toUpperCase() + t.slice(1)}`);
     const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
     if (t === tab) {
       content.classList.remove('hidden');
-      btn.classList.add('bg-slate-800', 'text-white', 'shadow-sm');
-      btn.classList.remove('text-slate-400');
+      btn.className = 'flex-1 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm flex items-center justify-center gap-1.5 transition-all font-semibold';
     } else {
       content.classList.add('hidden');
-      btn.classList.remove('bg-slate-800', 'text-white', 'shadow-sm');
-      btn.classList.add('text-slate-400');
+      btn.className = 'flex-1 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all font-semibold';
     }
   });
   if (window.lucide) window.lucide.createIcons();
@@ -64,7 +109,7 @@ function clearImage() {
   document.getElementById("dropZone").classList.remove("hidden");
 }
 
-// Live Camera Scanner
+// Live Camera Scanner Viewfinder
 async function openLiveCameraModal() {
   const modal = document.getElementById("liveCameraModal");
   const video = document.getElementById("cameraVideo");
@@ -179,6 +224,8 @@ async function loadScenario(scenarioId) {
     if (data.scenario.patient) {
       document.getElementById("patientAllergiesInput").value = (data.scenario.patient.allergies || []).join(", ");
       document.getElementById("patientHistoryInput").value = (data.scenario.patient.pre_existing_conditions || []).join(", ");
+      document.getElementById("customPatientName").value = data.scenario.patient.name || "";
+      document.getElementById("customPatientAge").value = data.scenario.patient.age || "";
     }
     if (data.scenario.raw_text_preview) {
       document.getElementById("textNotesInput").value = data.scenario.raw_text_preview;
@@ -192,15 +239,26 @@ async function loadScenario(scenarioId) {
   }
 }
 
-// Execute Analysis
+// Execute Analysis (Supports Real User Custom Form, Image, Audio, or Notes)
 async function executeAnalysis() {
   const notes = document.getElementById("textNotesInput").value;
   const allergies = document.getElementById("patientAllergiesInput").value;
   const history = document.getElementById("patientHistoryInput").value;
   const lang = document.getElementById("targetLanguageSelect").value;
 
-  if (!selectedImageBase64 && !recordedAudioBase64 && !notes && !allergies && !history) {
-    alert("Please provide at least one input: upload/scan a prescription image, record a voice memo, or enter clinical notes.");
+  // Custom Form Builder data
+  const customName = document.getElementById("customPatientName")?.value;
+  const customAge = document.getElementById("customPatientAge")?.value;
+  const customMeds = document.getElementById("customMedsList")?.value;
+  const customSymptoms = document.getElementById("customSymptoms")?.value;
+
+  let combinedNotes = notes;
+  if (customMeds || customSymptoms || customName) {
+    combinedNotes = `Patient: ${customName || 'Patient'}, Age: ${customAge || 'Adult'}. Symptoms: ${customSymptoms || 'Reported'}. Prescribed Medications: ${customMeds || 'None'}. ${notes || ''}`;
+  }
+
+  if (!selectedImageBase64 && !recordedAudioBase64 && !combinedNotes && !allergies && !history) {
+    alert("Please provide at least one input: upload a prescription image, scan via camera, record voice, or fill in patient details.");
     return;
   }
 
@@ -210,7 +268,7 @@ async function executeAnalysis() {
     const payload = {
       image_data: selectedImageBase64,
       audio_data: recordedAudioBase64,
-      text_notes: notes,
+      text_notes: combinedNotes,
       patient_history: history,
       patient_allergies: allergies,
       target_language: lang
@@ -226,6 +284,12 @@ async function executeAnalysis() {
     currentAnalysisData = data.analysis;
     currentFhirBundle = data.fhir_bundle;
     currentHl7Message = data.hl7_message;
+
+    // If custom name was provided, ensure it reflects
+    if (customName && currentAnalysisData.patient) {
+      currentAnalysisData.patient.name = customName;
+      if (customAge) currentAnalysisData.patient.age = parseInt(customAge);
+    }
 
     renderResults(currentAnalysisData, currentFhirBundle, currentHl7Message);
   } catch (err) {
@@ -253,20 +317,20 @@ function renderResults(data, fhirBundle, hl7Message) {
   summary.innerText = triage.summary || "";
   scoreTag.innerText = `Triage Urgency: ${triage.score || 50}/100`;
 
-  banner.className = "p-5 rounded-2xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl";
+  banner.className = "p-5 rounded-2xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-md dark:shadow-xl";
   if (triage.level === "RED") {
-    banner.classList.add("bg-red-950/40", "border-red-500/60");
-    iconBox.className = "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-900/60 text-red-400 border border-red-700/60 pulse-danger";
+    banner.classList.add("bg-red-50", "dark:bg-red-950/40", "border-red-300", "dark:border-red-500/60");
+    iconBox.className = "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700/60 pulse-danger";
     levelTag.className = "px-2.5 py-0.5 text-xs font-black rounded-full uppercase tracking-wide bg-red-600 text-white";
     levelTag.innerText = "RED: CRITICAL EMERGENCY";
   } else if (triage.level === "AMBER") {
-    banner.classList.add("bg-amber-950/40", "border-amber-500/60");
-    iconBox.className = "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-900/60 text-amber-400 border border-amber-700/60";
+    banner.classList.add("bg-amber-50", "dark:bg-amber-950/40", "border-amber-300", "dark:border-amber-500/60");
+    iconBox.className = "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700/60";
     levelTag.className = "px-2.5 py-0.5 text-xs font-black rounded-full uppercase tracking-wide bg-amber-600 text-white";
     levelTag.innerText = "AMBER: URGENT ACTION";
   } else {
-    banner.classList.add("bg-emerald-950/40", "border-emerald-500/60");
-    iconBox.className = "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-900/60 text-emerald-400 border border-emerald-700/60";
+    banner.classList.add("bg-emerald-50", "dark:bg-emerald-950/40", "border-emerald-300", "dark:border-emerald-500/60");
+    iconBox.className = "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700/60";
     levelTag.className = "px-2.5 py-0.5 text-xs font-black rounded-full uppercase tracking-wide bg-emerald-600 text-white";
     levelTag.innerText = "GREEN: ROUTINE / STABLE";
   }
@@ -282,14 +346,14 @@ function renderResults(data, fhirBundle, hl7Message) {
 
     const badge = document.getElementById("envRiskBadge");
     badge.innerText = `${env.environmental_risk_level} ENVIRONMENTAL RISK`;
-    badge.className = `text-[10px] font-bold px-2 py-0.5 rounded-full ${env.environmental_risk_level === 'HIGH' ? 'bg-rose-900 text-rose-300' : 'bg-slate-800 text-slate-300'}`;
+    badge.className = `text-[10px] font-bold px-2 py-0.5 rounded-full ${env.environmental_risk_level === 'HIGH' ? 'bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`;
 
     const alertsContainer = document.getElementById("envAlertsContainer");
     alertsContainer.innerHTML = "";
     (env.contextual_alerts || []).forEach(al => {
       const div = document.createElement("div");
-      div.className = "p-2 rounded-lg bg-slate-950/80 border border-slate-800 text-[11px] text-amber-300 flex items-start gap-1.5";
-      div.innerHTML = `<i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5"></i> <span><strong>${al.trigger}:</strong> ${al.impact} (${al.action})</span>`;
+      div.className = "p-2 rounded-lg bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-[11px] text-amber-700 dark:text-amber-300 flex items-start gap-1.5";
+      div.innerHTML = `<i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5"></i> <span><strong>${al.trigger}:</strong> ${al.impact} (${al.action})</span>`;
       alertsContainer.appendChild(div);
     });
   } else {
@@ -301,11 +365,11 @@ function renderResults(data, fhirBundle, hl7Message) {
   const safetyBadge = document.getElementById("safetyBadge");
   safetyBadge.innerText = safety.badge || "Safety Checked";
   if (safety.color === "red") {
-    safetyBadge.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-900/60 text-red-300 border border-red-700/60";
+    safetyBadge.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700/60";
   } else if (safety.color === "amber") {
-    safetyBadge.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-900/60 text-amber-300 border border-amber-700/60";
+    safetyBadge.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60";
   } else {
-    safetyBadge.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/60";
+    safetyBadge.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60";
   }
 
   const interactionList = document.getElementById("interactionList");
@@ -318,8 +382,8 @@ function renderResults(data, fhirBundle, hl7Message) {
 
   if (allAlerts.length === 0) {
     interactionList.innerHTML = `
-      <div class="p-3.5 rounded-xl bg-emerald-950/30 border border-emerald-800/40 text-xs text-emerald-300 flex items-center gap-2">
-        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+      <div class="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i>
         <span>No lethal drug-drug interactions or cross-allergies detected. Prescriptions cleared for administration.</span>
       </div>
     `;
@@ -327,25 +391,25 @@ function renderResults(data, fhirBundle, hl7Message) {
     allAlerts.forEach(alertItem => {
       const isCrit = alertItem.severity === "CRITICAL";
       const card = document.createElement("div");
-      card.className = `p-3.5 rounded-xl border ${isCrit ? 'bg-red-950/40 border-red-500/60 text-red-200' : 'bg-amber-950/40 border-amber-500/60 text-amber-200'}`;
+      card.className = `p-3.5 rounded-xl border ${isCrit ? 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-500/60 text-red-900 dark:text-red-200' : 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-500/60 text-amber-900 dark:text-amber-200'}`;
       card.innerHTML = `
         <div class="flex items-center justify-between font-bold text-xs mb-1">
           <span class="flex items-center gap-1.5">
-            <i data-lucide="${isCrit ? 'alert-triangle' : 'alert-circle'}" class="w-4 h-4 ${isCrit ? 'text-red-400' : 'text-amber-400'}"></i>
+            <i data-lucide="${isCrit ? 'alert-triangle' : 'alert-circle'}" class="w-4 h-4 ${isCrit ? 'text-red-500' : 'text-amber-500'}"></i>
             ${alertItem.title || 'Drug Hazard Alert'}
           </span>
-          <span class="text-[10px] px-2 py-0.5 rounded uppercase ${isCrit ? 'bg-red-900/80 text-red-200' : 'bg-amber-900/80 text-amber-200'}">${alertItem.severity}</span>
+          <span class="text-[10px] px-2 py-0.5 rounded uppercase font-bold ${isCrit ? 'bg-red-200 dark:bg-red-900/80 text-red-800 dark:text-red-200' : 'bg-amber-200 dark:bg-amber-900/80 text-amber-800 dark:text-amber-200'}">${alertItem.severity}</span>
         </div>
         <p class="text-[11px] opacity-90 leading-relaxed mb-2">${alertItem.mechanism || ''}</p>
-        <div class="p-2 rounded-lg bg-slate-950/60 border border-slate-800 text-[11px]">
-          <strong class="${isCrit ? 'text-red-400' : 'text-amber-400'}">Life-Saving Action:</strong> ${alertItem.recommendation || ''}
+        <div class="p-2 rounded-lg bg-white/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-[11px]">
+          <strong class="${isCrit ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}">Life-Saving Action:</strong> ${alertItem.recommendation || ''}
         </div>
       `;
       interactionList.appendChild(card);
     });
   }
 
-  // 4. Medications & Pill Appearance Table
+  // 4. Medications Table
   const meds = data.medications || [];
   const patient = data.patient || {};
   document.getElementById("patientMeta").innerText = `Patient: ${patient.name || 'Anonymous'} (${patient.age || 'N/A'}yo ${patient.gender || ''})`;
@@ -354,34 +418,34 @@ function renderResults(data, fhirBundle, hl7Message) {
   tbody.innerHTML = "";
   meds.forEach(med => {
     const tr = document.createElement("tr");
-    tr.className = "hover:bg-slate-800/40 transition-colors";
+    tr.className = "hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors";
     
     const pillVis = med.pill_visual || { shape: "Oral Tablet", color: "White", imprint: "Standard" };
     const genericAlt = med.generic_alternative || { available: true, avg_savings_percent: 75 };
 
     tr.innerHTML = `
       <td class="py-2.5 px-3">
-        <div class="font-bold text-white flex items-center gap-1.5">
+        <div class="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
           ${med.brand_name || med.generic_name}
-          ${med.is_high_risk ? '<span class="px-1.5 py-0.2 text-[9px] bg-red-900/80 text-red-300 rounded font-mono">HIGH RISK</span>' : ''}
+          ${med.is_high_risk ? '<span class="px-1.5 py-0.2 text-[9px] bg-red-100 dark:bg-red-900/80 text-red-700 dark:text-red-300 rounded font-mono">HIGH RISK</span>' : ''}
         </div>
-        <div class="text-[11px] text-slate-400 font-mono">${med.generic_name || ''}</div>
-        <span class="inline-block mt-1 text-[10px] font-semibold text-emerald-400 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-800/60">
+        <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">${med.generic_name || ''}</div>
+        <span class="inline-block mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800/60">
           Generic Saves ~${genericAlt.avg_savings_percent}%
         </span>
       </td>
       <td class="py-2.5 px-3">
-        <div class="text-xs text-slate-200 font-medium">${pillVis.shape}</div>
-        <div class="text-[10px] text-cyan-300">${pillVis.color}</div>
+        <div class="text-xs text-slate-800 dark:text-slate-200 font-medium">${pillVis.shape}</div>
+        <div class="text-[10px] text-cyan-600 dark:text-cyan-300 font-medium">${pillVis.color}</div>
         <div class="text-[9px] text-slate-400 font-mono">Imprint: ${pillVis.imprint}</div>
       </td>
-      <td class="py-2.5 px-3 font-mono text-[11px] text-cyan-300">
+      <td class="py-2.5 px-3 font-mono text-[11px] text-cyan-700 dark:text-cyan-300">
         <div>${med.dosage || 'N/A'} (${med.route || 'Oral'})</div>
-        <div class="text-[11px] text-slate-300 font-sans">${med.frequency || ''}</div>
+        <div class="text-[11px] text-slate-600 dark:text-slate-300 font-sans">${med.frequency || ''}</div>
       </td>
-      <td class="py-2.5 px-3 text-[11px] text-slate-300">
-        <div class="font-medium text-slate-200">${med.purpose || ''}</div>
-        <div class="text-[10px] text-amber-300/90">${med.dietary_warnings || med.instructions || ''}</div>
+      <td class="py-2.5 px-3 text-[11px] text-slate-700 dark:text-slate-300">
+        <div class="font-medium text-slate-900 dark:text-slate-200">${med.purpose || ''}</div>
+        <div class="text-[10px] text-amber-700 dark:text-amber-300/90">${med.dietary_warnings || med.instructions || ''}</div>
       </td>
     `;
     tbody.appendChild(tr);
@@ -401,8 +465,8 @@ function renderResults(data, fhirBundle, hl7Message) {
   redFlagsUl.innerHTML = "";
   (guide.red_flag_symptoms || []).forEach(rf => {
     const li = document.createElement("li");
-    li.className = "flex items-start gap-1.5 text-slate-300";
-    li.innerHTML = `<span class="text-red-400">•</span> <span>${rf}</span>`;
+    li.className = "flex items-start gap-1.5 text-slate-700 dark:text-slate-300";
+    li.innerHTML = `<span class="text-red-500">•</span> <span>${rf}</span>`;
     redFlagsUl.appendChild(li);
   });
 
@@ -421,10 +485,17 @@ function renderResults(data, fhirBundle, hl7Message) {
     document.getElementById("hl7Block").innerText = hl7Message;
   }
 
-  // Update QR Code
+  // Generate Pure QR Code
   generateHealthCardQr(patient, meds);
 
   if (window.lucide) window.lucide.createIcons();
+}
+
+// Language Selector Change Trigger
+function onLanguageChanged() {
+  if (currentAnalysisData) {
+    executeAnalysis();
+  }
 }
 
 // Adherence Tracker
@@ -436,13 +507,18 @@ function updateAdherence() {
   document.getElementById("adherenceRateTag").innerText = `Adherence: ${pct}% Logged`;
 }
 
-// Text-to-Speech Explainer
+// Multilingual Text-to-Speech Explainer
 function speakPatientSummary() {
   const text = document.getElementById("plainSummaryText").innerText;
   if (!text) return;
+
+  const langCode = document.getElementById("targetLanguageSelect")?.value || "en";
+  const voiceConfig = LANGUAGE_CONFIG[langCode] || LANGUAGE_CONFIG.en;
+
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = voiceConfig.voiceLang;
     utterance.rate = 0.95;
     utterance.pitch = 1.0;
     window.speechSynthesis.speak(utterance);
@@ -470,35 +546,38 @@ function closeEmergencySOS() {
   document.getElementById("emergencySosModal").classList.add("hidden");
 }
 
-// Health Card & QR Code
+// Pure QR Code Generator (Encodes complete patient info for smartphone scanning)
 function generateHealthCardQr(patient, meds) {
   const qrDiv = document.getElementById("qrcode");
   qrDiv.innerHTML = "";
 
   const payload = {
-    app: "MedForever Emergency QR",
-    patient: patient.name || "Anonymous",
+    medforever_health_pass: "VERIFIED",
+    patient_name: patient.name || "Anonymous",
     age: patient.age,
     allergies: patient.allergies || [],
-    meds: (meds || []).map(m => m.generic_name || m.brand_name)
+    conditions: patient.pre_existing_conditions || [],
+    active_prescriptions: (meds || []).map(m => ({
+      drug: m.brand_name || m.generic_name,
+      dose: m.dosage,
+      freq: m.frequency,
+      slot: m.timing_slot
+    })),
+    emergency_contact: "+1 (555) 911-0000"
   };
 
   try {
     new QRCode(qrDiv, {
-      text: JSON.stringify(payload),
-      width: 140,
-      height: 140,
-      colorDark: "#020617",
+      text: JSON.stringify(payload, null, 2),
+      width: 220,
+      height: 220,
+      colorDark: "#090d16",
       colorLight: "#ffffff",
       correctLevel: QRCode.CorrectLevel.M
     });
   } catch (e) {
     console.error("QR Code Error:", e);
   }
-
-  document.getElementById("cardPatientName").innerText = `${patient.name || 'Anonymous'} (${patient.age || 'N/A'}yo ${patient.gender || ''})`;
-  document.getElementById("cardAllergies").innerText = (patient.allergies || []).join(", ") || "None Documented";
-  document.getElementById("cardMeds").innerText = (meds || []).map(m => m.brand_name).join(", ") || "None";
 }
 
 function openHealthCardModal() {
@@ -532,13 +611,13 @@ function switchInteropTab(tab) {
   if (tab === 'fhir') {
     fhirBlock.classList.remove("hidden");
     hl7Block.classList.add("hidden");
-    btnFhir.className = "px-3 py-1 rounded bg-slate-800 text-cyan-400 font-bold";
-    btnHl7.className = "px-3 py-1 rounded bg-slate-950 text-slate-400";
+    btnFhir.className = "px-3 py-1 rounded bg-slate-200 dark:bg-slate-800 text-cyan-700 dark:text-cyan-400 font-bold";
+    btnHl7.className = "px-3 py-1 rounded bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400";
   } else {
     fhirBlock.classList.add("hidden");
     hl7Block.classList.remove("hidden");
-    btnHl7.className = "px-3 py-1 rounded bg-slate-800 text-amber-400 font-bold";
-    btnFhir.className = "px-3 py-1 rounded bg-slate-950 text-slate-400";
+    btnHl7.className = "px-3 py-1 rounded bg-slate-200 dark:bg-slate-800 text-amber-700 dark:text-amber-400 font-bold";
+    btnFhir.className = "px-3 py-1 rounded bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400";
   }
 }
 
@@ -554,8 +633,8 @@ function copyCurrentInteropCode() {
   });
 }
 
-// Download Clinical PDF / Printable Summary
-async function downloadClinicalReport() {
+// Direct PDF File Downloader
+async function downloadClinicalReportDirectPdf() {
   if (!currentAnalysisData) {
     alert("Please analyze or load a scenario first.");
     return;
@@ -567,11 +646,29 @@ async function downloadClinicalReport() {
       body: JSON.stringify({ analysis_data: currentAnalysisData })
     });
     const html = await res.text();
-    const win = window.open("", "_blank");
-    win.document.write(html);
-    win.document.close();
+    
+    const container = document.getElementById("pdfRenderContainer");
+    container.innerHTML = html;
+    
+    const opt = {
+      margin: 10,
+      filename: `MedForever_Discharge_${(currentAnalysisData.patient?.name || 'Patient').replace(/\s+/g, '_')}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    if (window.html2pdf) {
+      window.html2pdf().set(opt).from(container).save().then(() => {
+        container.innerHTML = "";
+      });
+    } else {
+      const win = window.open("", "_blank");
+      win.document.write(html);
+      win.document.close();
+    }
   } catch (e) {
-    alert("Failed to generate clinical summary: " + e.message);
+    alert("Failed to generate PDF download: " + e.message);
   }
 }
 

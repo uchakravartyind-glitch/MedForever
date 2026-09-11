@@ -2,7 +2,7 @@
 Printable Clinical Discharge & Triage Report Generator
 Generates clinical-grade discharge documentation and emergency transfer summaries.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 def generate_printable_report_html(data: Dict[str, Any]) -> str:
@@ -14,7 +14,7 @@ def generate_printable_report_html(data: Dict[str, Any]) -> str:
     safety = data.get("safety_analysis", {})
     meds = data.get("medications", [])
     soap = triage.get("soap_note", {})
-    now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
     triage_bg = "#dc2626" if triage.get("level") == "RED" else ("#d97706" if triage.get("level") == "AMBER" else "#059669")
 

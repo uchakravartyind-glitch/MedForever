@@ -4,7 +4,7 @@ Generates HL7 FHIR Release 4 JSON Bundles and HL7 v2.5 pipe-delimited messages
 for hospital EHR systems, EMS dispatch, and health exchanges.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 def generate_fhir_bundle(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -13,7 +13,7 @@ def generate_fhir_bundle(data: Dict[str, Any]) -> Dict[str, Any]:
     Condition, AllergyIntolerance, and MedicationRequest resources.
     """
     bundle_id = str(uuid.uuid4())
-    now_iso = datetime.utcnow().isoformat() + "Z"
+    now_iso = datetime.now(timezone.utc).isoformat()
     
     patient_data = data.get("patient", {})
     patient_name = patient_data.get("name", "Unknown Patient")
@@ -173,7 +173,7 @@ def generate_hl7_v2_message(data: Dict[str, Any]) -> str:
     Generates standard HL7 v2.5 pipe-delimited message string.
     """
     msg_ctrl_id = uuid.uuid4().hex[:10].upper()
-    ts = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
     patient = data.get("patient", {})
     p_name = patient.get("name", "PATIENT^UNKNOWN").replace(" ", "^")
     p_gender = patient.get("gender", "U")[0].upper() if patient.get("gender") else "U"
