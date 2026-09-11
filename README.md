@@ -53,6 +53,24 @@ It takes **messy, unstructured real-world medical data** (illegible handwritten 
 
 ---
 
+## 🚀 Quick Setup
+
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. **Launch MedForever:**
+   ```bash
+   python run.py
+   ```
+   *(Server boots on `http://127.0.0.1:8000` and opens in your default browser).*
+
+3. **Run tests:**
+   ```bash
+   pytest -v tests/test_api.py
+   ```
+
+---
 
 ## 📂 Project Structure
 
