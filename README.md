@@ -8,15 +8,17 @@
 
 ---
 
-## 🌟 Overview
+## 📌 1. Chosen Vertical
 
-**MedForever** is a Gemini-powered clinical intelligence bridge designed for the **Google for Developers PromptWars x Techverse (Build with AI)** hackathon. 
+**Vertical:** **Healthcare, Emergency Clinical Triage & Medication Safety Bridge**
 
-It takes **messy, unstructured real-world medical data** (illegible handwritten doctor scripts, frantic emergency voice recordings, crumpled pill packaging, complex hospital discharge summaries) and instantly converts them into **verified, life-saving clinical actions, FHIR R4 / HL7 records, drug contraindication alerts, and 24-hour visual medication schedules**.
+In real-world healthcare, over 7,000+ deaths occur annually due to illegible doctor handwriting, medication brand confusions, and uncommunicated drug allergies during emergency calls. **MedForever** serves as a universal multimodal bridge connecting chaotic human intent (frantic voice memos, crumpled prescriptions, multi-page discharge summaries) directly into life-saving clinical systems.
 
 ---
 
-## 🎯 How It Solves the Challenge
+## 🧠 2. Approach and Logic
+
+MedForever uses a **Hybrid Multimodal Intelligence Architecture**:
 
 ```
 ┌─────────────────────────────────┐       ┌─────────────────────────────────┐       ┌─────────────────────────────────┐
@@ -28,17 +30,31 @@ It takes **messy, unstructured real-world medical data** (illegible handwritten 
 └─────────────────────────────────┘       └─────────────────────────────────┘       └─────────────────────────────────┘
 ```
 
+1. **Multimodal Ingestion:** Accepts real-world inputs via live camera scanner, microphone audio recording, or freeform text notes.
+2. **Gemini 2.5 Flash Intelligence Core:** Performs handwriting OCR, parses frantic voice tone and emergency symptoms, and extracts structured clinical entities (brand name, generic formula, strength, frequency).
+3. **Deterministic Safety Guardrail:** All extracted medications and patient allergies are cross-referenced against a rule-based pharmacological knowledge base (30+ high-hazard interactions and cross-allergies) to eliminate LLM hallucinations for life-critical decisions.
+4. **Clinical Interoperability Output:** Generates standardized healthcare data structures (FHIR R4 Bundle JSON and HL7 v2.5 pipe-delimited messages) along with plain-language patient guides.
+
 ---
 
-## ✨ Key Features
+## ⚙️ 3. How the Solution Works
 
-- **📷 In-Browser Camera Scanner & OCR:** Captures and deciphers messy handwriting, blurred pill strips, and multi-page lab reports.
-- **🎙️ Live Voice Memo Triage:** Transcribes panicked emergency audio with live waveform visualizer to classify Emergency Severity Index (ESI Level 1–5).
-- **🛡️ 30+ Drug Contraindication Matrix:** Detects fatal drug-drug clashes (e.g. *Warfarin + Ibuprofen* bleeding hazard) and automatically suggests safe clinical alternatives.
-- **🏥 Healthcare Standards Interoperability:** Generates both **HL7 FHIR Release 4 JSON Bundles** and **HL7 v2.5 pipe-delimited messages** ready for hospital EHRs (Epic, Cerner).
-- **⏰ 24-Hour Chrono-Dosing & Adherence Tracker:** Interactive daily dosage schedule with pill visual identifiers (shape, color, imprint) and generic cost savings calculator.
-- **🚨 1-Tap Emergency SOS & Offline Paramedic QR Card:** Instant 911 dispatch telemetry and scannable offline emergency card for first responders.
-- **📄 Printable Discharge PDF:** Generates official clinical summaries with physician signature blocks.
+- **📷 In-Browser Camera Scanner & OCR:** Live viewfinder with targeting reticle crops and digitizes physical doctor slips and pill packaging.
+- **🎙️ Emergency Voice Memo Triage:** Captures panicked speech, calculates an Emergency Severity Index (ESI Level 1–5), and structures SOAP clinical notes.
+- **🛡️ Drug-Drug & Allergy Contraindication Matrix:** Detects lethal combinations (e.g., *Warfarin + Ibuprofen* bleeding hazard) and automatically suggests safe substitutes (e.g., *Acetaminophen*).
+- **🏥 FHIR R4 & HL7 v2.5 Interoperability:** Exports standard `Patient`, `Encounter`, `Condition`, `MedicationRequest`, and `AllergyIntolerance` records.
+- **⏰ 24-Hour Chrono-Dosing & Adherence Checklist:** Organizes daily doses into 4 intuitive time slots (Morning, Afternoon, Evening, Night) with pill visual identifiers (shape, color, imprint) and generic cost savings.
+- **🚨 1-Tap EMS SOS & Offline Paramedic QR Card:** Pre-formats 911 dispatch telemetry and generates scannable offline emergency medical wallet cards.
+- **📄 Printable Discharge PDF Summary:** Generates official clinical summaries with physician signature verification lines.
+
+---
+
+## 🔍 4. Assumptions Made
+
+1. **Safety-First Hybrid Validation:** LLM responses are cross-verified with a deterministic clinical database to ensure zero false negatives on fatal contraindications.
+2. **Standard Reference Values:** Pediatric dosing calculations assume standard weight-based formulas (e.g., 45mg/kg/day for Amoxicillin).
+3. **Emergency Interoperability Standards:** Hospital EHR integrations follow HL7 FHIR Release 4 and HL7 v2.5 messaging standards.
+4. **Geolocation & Facility Data:** Nearby Level 1 trauma centers and 24/7 pharmacies use simulated coordinates and verified inventory for hackathon demonstration.
 
 ---
 
