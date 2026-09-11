@@ -106,7 +106,13 @@ def analyze_multimodal_input(
     text_notes: Optional[str] = None,
     patient_history: Optional[str] = None,
     patient_allergies: Optional[str] = None,
-    target_language: str = "en"
+    target_language: str = "en",
+    patient_photo: Optional[str] = None,
+    vitals: Optional[Dict[str, Any]] = None,
+    location_lat: Optional[float] = None,
+    location_lon: Optional[float] = None,
+    country_code: Optional[str] = None,
+    city: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Analyzes multimodal medical inputs with Gemini and clinical post-processing.
@@ -123,7 +129,9 @@ def analyze_multimodal_input(
                 text_notes=text_notes,
                 patient_history=patient_history,
                 patient_allergies=patient_allergies,
-                target_language=target_language
+                target_language=target_language,
+                country_code=country_code,
+                city=city
             )
         except Exception as e:
             print(f"[Gemini Exception] {e} - Using clinical intelligence pipeline")
@@ -137,6 +145,14 @@ def analyze_multimodal_input(
             patient_allergies=patient_allergies,
             target_language=target_language
         )
+
+    # Attach patient photo and vitals if provided
+    if "patient" not in result:
+        result["patient"] = {}
+    if patient_photo:
+        result["patient"]["photo"] = patient_photo
+    if vitals:
+        result["patient"]["vitals"] = vitals
 
     # 1. Deterministic Pharmacological Safety Validation
     allergies = result.get("patient", {}).get("allergies", [])
@@ -178,7 +194,13 @@ def analyze_multimodal_input(
 
     # 4. Enrich with Emergency Facilities & Verified 24/7 Pharmacies
     triage_level = result.get("triage", {}).get("level", "GREEN")
-    result["emergency_facilities"] = get_nearby_emergency_resources(triage_level)
+    result["emergency_facilities"] = get_nearby_emergency_resources(
+        triage_level=triage_level,
+        lat=location_lat,
+        lon=location_lon,
+        country_code=country_code,
+        city=city
+    )
 
     return result
 
@@ -189,7 +211,9 @@ def _call_gemini_api(
     text_notes: Optional[str] = None,
     patient_history: Optional[str] = None,
     patient_allergies: Optional[str] = None,
-    target_language: str = "en"
+    target_language: str = "en",
+    country_code: Optional[str] = None,
+    city: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     """Calls Gemini 2.5 Flash / 1.5 Flash via REST API."""
     model_name = DEFAULT_GEMINI_MODEL
@@ -197,6 +221,8 @@ def _call_gemini_api(
     
     parts = []
     user_prompt = "Analyze these real-world medical inputs and generate structured clinical intelligence.\n"
+    if city or country_code:
+        user_prompt += f"\n--- Patient Location Context: {city or ''} {country_code or ''} ---\n"
     if text_notes:
         user_prompt += f"\n--- Unstructured Doctor Notes / Prescription Text ---\n{text_notes}\n"
     if patient_history:

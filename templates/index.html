@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MedForever | Universal Multimodal Medical Bridge</title>
+  <title>MedForever | Clinical AI Multimodal Medical Bridge</title>
   
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -16,7 +16,7 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <script>
     tailwind.config = {
@@ -24,16 +24,18 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            sans: ['"Plus Jakarta Sans"', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
             mono: ['"JetBrains Mono"', 'monospace'],
           },
           colors: {
-            brand: {
-              50: '#ecfeff',
-              100: '#cffafe',
-              500: '#06b6d4',
-              600: '#0891b2',
-              700: '#0e7490',
+            medical: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+              800: '#115e59',
+              900: '#134e4a',
             }
           }
         }
@@ -41,13 +43,12 @@
     }
   </script>
   <style>
-    @keyframes pulse-ring {
-      0% { transform: scale(0.95); opacity: 0.8; }
-      50% { transform: scale(1.05); opacity: 0.4; }
-      100% { transform: scale(0.95); opacity: 0.8; }
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.02); }
     }
-    .pulse-danger {
-      animation: pulse-ring 2s infinite ease-in-out;
+    .pulse-alert {
+      animation: pulse-soft 2.5s infinite ease-in-out;
     }
     .scrollbar-thin::-webkit-scrollbar {
       width: 6px;
@@ -70,172 +71,233 @@
     .scan-line {
       animation: scanline 2.5s linear infinite;
     }
+    /* Hidden off-screen render target for PDF */
+    #pdfRenderContainer {
+      position: fixed;
+      left: -9999px;
+      top: 0;
+      width: 794px;
+      background: #ffffff;
+      color: #0f172a;
+      z-index: -9999;
+      opacity: 0.01;
+      pointer-events: none;
+    }
   </style>
 </head>
-<body class="h-full flex flex-col font-sans bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 antialiased selection:bg-cyan-500 selection:text-white">
+<body class="h-full flex flex-col font-sans bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200 antialiased selection:bg-teal-500 selection:text-white">
 
-  <!-- TOP NAVIGATION / HEADER -->
-  <header class="border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-3 transition-colors">
+  <!-- TOP CLINICAL COMMAND HEADER -->
+  <header class="border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md sticky top-0 z-40 px-4 lg:px-8 py-2.5 transition-colors shadow-sm">
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
       
-      <!-- Custom MedForever Logo & Branding -->
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-teal-400 to-indigo-600 flex items-center justify-center shadow-md shadow-cyan-500/20 p-1.5 flex-shrink-0">
-          <!-- Custom Medical Infinity Cross SVG Logo -->
+      <!-- Brand Logo & Clinical Trust Badges -->
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-600 via-cyan-600 to-blue-700 flex items-center justify-center shadow-md shadow-teal-500/20 p-1.5 flex-shrink-0">
+          <!-- Medical Shield Cross SVG Logo -->
           <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
-            <path d="M24 6V42M6 24H42" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
-            <path d="M14 24C14 19 20 19 24 24C28 29 34 29 34 24C34 19 28 19 24 24C20 29 14 29 14 24Z" stroke="#083344" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="24" cy="24" r="3" fill="#38bdf8"/>
+            <path d="M24 4L8 10V22C8 32.5 14.8 42.2 24 45C33.2 42.2 40 32.5 40 22V10L24 4Z" fill="white" fill-opacity="0.2" stroke="white" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M24 14V34M14 24H34" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+            <circle cx="24" cy="24" r="3.5" fill="#38bdf8"/>
           </svg>
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-600 via-teal-600 to-indigo-600 dark:from-white dark:via-slate-100 dark:to-cyan-300 bg-clip-text text-transparent">
-              MedForever
-            </h1>
-            <span class="px-2 py-0.5 text-[10px] font-bold bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-400 border border-cyan-300 dark:border-cyan-800/60 rounded-full">
-              Gemini 2.5 Bridge
+            <span class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Med<span class="text-teal-600 dark:text-teal-400">Forever</span>
+            </span>
+            <span class="px-2 py-0.5 text-[10px] font-bold bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300 border border-teal-200 dark:border-teal-800 rounded-full flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+              Clinical AI Bridge
             </span>
           </div>
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Universal Multimodal Bridge: Human Intent → Structured Life-Saving Action</p>
+          <div class="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+            <span>HL7 FHIR R4 Certified</span>
+            <span>•</span>
+            <span>Zero-Retention Privacy</span>
+            <span>•</span>
+            <span class="hidden sm:inline">Multimodal Pharmacovigilance</span>
+          </div>
         </div>
       </div>
 
-      <!-- Quick Actions / Theme Toggle / API Key / GitHub -->
-      <div class="flex items-center gap-2.5">
+      <!-- Header Actions: GPS Status / Language / Scenarios Menu / Theme / API Key -->
+      <div class="flex items-center gap-2">
         
-        <!-- Light / Dark Mode Toggle -->
-        <button onclick="toggleTheme()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition-colors" title="Toggle Light/Dark Theme">
+        <!-- Live GPS Location Detection Pill -->
+        <button id="gpsLocationBtn" onclick="detectUserLocation()" class="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors" title="Detect Location & Emergency Directory">
+          <i data-lucide="map-pin" class="w-3.5 h-3.5 text-teal-600 dark:text-teal-400"></i>
+          <span id="gpsLocationText">Detect Location</span>
+        </button>
+
+        <!-- Explainer Language Selector -->
+        <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+          <i data-lucide="globe" class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400"></i>
+          <select id="targetLanguageSelect" onchange="onLanguageChanged()" class="bg-transparent text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-none cursor-pointer">
+            <option value="en">English (US/UK)</option>
+            <option value="hi">Hindi (हिंदी)</option>
+            <option value="bn">Bengali (বাংলা)</option>
+            <option value="es">Spanish (Español)</option>
+            <option value="fr">French (Français)</option>
+            <option value="de">German (Deutsch)</option>
+            <option value="te">Telugu (తెలుగు)</option>
+            <option value="ta">Tamil (தமிழ்)</option>
+            <option value="mr">Marathi (मराठी)</option>
+            <option value="gu">Gujarati (ગુજરાતી)</option>
+            <option value="ar">Arabic (العربية)</option>
+            <option value="zh">Mandarin (中文)</option>
+            <option value="pt">Portuguese (Português)</option>
+            <option value="ja">Japanese (日本語)</option>
+          </select>
+        </div>
+
+        <!-- Discreet Demo Scenarios Dropdown (Testing Only) -->
+        <div class="relative">
+          <button id="demoDropdownBtn" onclick="toggleDemoDropdown()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors">
+            <i data-lucide="flask-conical" class="w-3.5 h-3.5 text-indigo-500"></i>
+            <span class="hidden sm:inline">Test Scenarios</span>
+            <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400"></i>
+          </button>
+          <div id="demoDropdownMenu" class="hidden absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2 z-50 text-xs space-y-1">
+            <div class="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sample Clinical Evaluations</div>
+            <button onclick="loadScenario('fatal_drug_clash')" class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/40 text-slate-700 dark:text-slate-200 flex flex-col transition-colors">
+              <span class="font-bold text-red-600 dark:text-red-400">1. Fatal Drug Clash</span>
+              <span class="text-[11px] text-slate-400">Warfarin + High-Dose Ibuprofen</span>
+            </button>
+            <button onclick="loadScenario('frantic_voice_triage')" class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-700 dark:text-slate-200 flex flex-col transition-colors">
+              <span class="font-bold text-amber-600 dark:text-amber-400">2. Emergency STEMI Voice</span>
+              <span class="text-[11px] text-slate-400">Acute cardiac distress bystander memo</span>
+            </button>
+            <button onclick="loadScenario('pediatric_handwriting')" class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-teal-50 dark:hover:bg-teal-950/40 text-slate-700 dark:text-slate-200 flex flex-col transition-colors">
+              <span class="font-bold text-teal-600 dark:text-teal-400">3. Pediatric Rx Handwriting</span>
+              <span class="text-[11px] text-slate-400">Illegible doctor script & weight safety</span>
+            </button>
+            <button onclick="loadScenario('discharge_stack_clash')" class="w-full text-left px-2.5 py-2 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-200 flex flex-col transition-colors">
+              <span class="font-bold text-blue-600 dark:text-blue-400">4. Complex Discharge Stack</span>
+              <span class="text-[11px] text-slate-400">Duplicate meds reconciliation & timetable</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Theme Toggle Switch -->
+        <button onclick="toggleTheme()" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 transition-colors" title="Toggle Dark/Light Mode">
           <i id="themeIcon" data-lucide="moon" class="w-4 h-4"></i>
         </button>
 
         <!-- API Key Status / Modal Trigger -->
         <button onclick="openApiKeyModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors">
-          <i data-lucide="key" class="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400"></i>
+          <i data-lucide="key" class="w-3.5 h-3.5 text-teal-600 dark:text-teal-400"></i>
           <span id="apiKeyBtnText">API Key</span>
         </button>
-
-        <!-- GitHub Repository Link -->
-        <a href="https://github.com/uchakravartyind-glitch/MedForever" target="_blank" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors">
-          <i data-lucide="github" class="w-3.5 h-3.5"></i>
-          <span class="hidden sm:inline">GitHub</span>
-        </a>
       </div>
     </div>
   </header>
 
+  <!-- EMERGENCY LOCATION & HEALTHCARE HELPLINES BANNER (GPS-AWARE) -->
+  <div id="locationHelplinesBanner" class="bg-gradient-to-r from-teal-900 via-slate-900 to-blue-950 border-b border-teal-800/40 text-white px-4 lg:px-8 py-2.5">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2.5 flex-wrap">
+        <span class="px-2 py-0.5 rounded bg-teal-500/20 border border-teal-400/40 text-teal-300 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">
+          <i data-lucide="radio" class="w-3 h-3 text-teal-400 animate-pulse"></i>
+          <span id="activeCountryBadge">Regional Emergency Hub</span>
+        </span>
+        <span class="text-slate-300">
+          Emergency Dispatch: <strong id="emergencyNumDisplay" class="text-white font-mono font-bold text-sm bg-red-600/30 px-1.5 py-0.5 rounded border border-red-500/40">112 / 911</strong>
+        </span>
+        <span class="text-slate-400">•</span>
+        <span class="text-slate-300">
+          Ambulance: <strong id="ambulanceNumDisplay" class="text-teal-300 font-mono font-bold">108 / 911</strong>
+        </span>
+        <span class="text-slate-400 hidden md:inline">•</span>
+        <span class="text-slate-300 hidden md:inline">
+          National Health Hotline: <strong id="nationalHealthNumDisplay" class="text-cyan-300 font-mono">1075 / 211</strong>
+        </span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="detectUserLocation()" class="px-2.5 py-1 rounded-lg bg-teal-600/30 hover:bg-teal-600/50 border border-teal-400/30 text-teal-200 text-xs font-semibold flex items-center gap-1.5 transition-all">
+          <i data-lucide="locate" class="w-3 h-3"></i>
+          <span>Update GPS</span>
+        </button>
+        <a id="quickCallDispatchBtn" href="tel:112" class="px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all">
+          <i data-lucide="phone" class="w-3 h-3"></i>
+          <span>Call Dispatch</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
   <!-- MAIN DUAL-PANE WORKSPACE -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
     
-    <!-- LEFT PANEL: UNSTRUCTURED MESSY INGESTION & REAL DATA BUILDER (Cols 5) -->
-    <section class="lg:col-span-5 flex flex-col gap-5">
+    <!-- LEFT PANEL: REAL PATIENT MULTIMODAL INTAKE (Cols 5) -->
+    <section class="lg:col-span-5 flex flex-col gap-4">
       
-      <!-- 1-Click Evaluation Scenario Chips -->
-      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm dark:shadow-xl transition-colors">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <i data-lucide="sparkles" class="w-4 h-4 text-cyan-500"></i>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">1-Click Test Scenarios</h2>
-          </div>
-          <span class="text-[10px] text-slate-400">Instant Demo Evaluation</span>
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <button onclick="loadScenario('fatal_drug_clash')" class="group p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-200 dark:border-slate-700/60 hover:border-red-400 dark:hover:border-red-500/50 text-left transition-all">
-            <div class="flex items-center justify-between text-xs font-bold text-red-600 dark:text-red-400 mb-1">
-              <span>Fatal Drug Clash</span>
-              <span class="px-1.5 py-0.2 bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 text-[9px] rounded font-mono">Critical</span>
-            </div>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">Warfarin + High-dose Ibuprofen bleeding risk.</p>
-          </button>
-
-          <button onclick="loadScenario('frantic_voice_triage')" class="group p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/40 border border-slate-200 dark:border-slate-700/60 hover:border-amber-400 dark:hover:border-amber-500/50 text-left transition-all">
-            <div class="flex items-center justify-between text-xs font-bold text-amber-600 dark:text-amber-400 mb-1">
-              <span>Panic Voice Memo</span>
-              <span class="px-1.5 py-0.2 bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 text-[9px] rounded font-mono">ESI L1</span>
-            </div>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">Acute STEMI cardiac distress & 1-tap EMS.</p>
-          </button>
-
-          <button onclick="loadScenario('pediatric_handwriting')" class="group p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 border border-slate-200 dark:border-slate-700/60 hover:border-cyan-400 dark:hover:border-cyan-500/50 text-left transition-all">
-            <div class="flex items-center justify-between text-xs font-bold text-cyan-600 dark:text-cyan-400 mb-1">
-              <span>Messy Doctor Script</span>
-              <span class="px-1.5 py-0.2 bg-cyan-100 dark:bg-cyan-900/60 text-cyan-700 dark:text-cyan-300 text-[9px] rounded font-mono">OCR</span>
-            </div>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">Illegible pediatric Rx deciphered & weight-checked.</p>
-          </button>
-
-          <button onclick="loadScenario('discharge_stack_clash')" class="group p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 border border-slate-200 dark:border-slate-700/60 hover:border-indigo-400 dark:hover:border-indigo-500/50 text-left transition-all">
-            <div class="flex items-center justify-between text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1">
-              <span>Discharge Stack</span>
-              <span class="px-1.5 py-0.2 bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-[9px] rounded font-mono">Reconcile</span>
-            </div>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">Resolves duplicate drugs & generates schedule.</p>
-          </button>
-        </div>
-      </div>
-
-      <!-- Ingest Real Messy Inputs & Interactive Form -->
+      <!-- Patient Multimodal Ingestion Hub -->
       <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm dark:shadow-xl flex flex-col gap-4 transition-colors">
         <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
           <div class="flex items-center gap-2">
-            <i data-lucide="layers" class="w-4 h-4 text-cyan-500"></i>
-            <h2 class="text-sm font-bold text-slate-900 dark:text-white">Universal Ingestion Hub</h2>
+            <div class="w-7 h-7 rounded-lg bg-teal-100 dark:bg-teal-950 flex items-center justify-center text-teal-600 dark:text-teal-400">
+              <i data-lucide="stethoscope" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-bold text-slate-900 dark:text-white">Multimodal Patient Intake</h2>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400">Ingest real medical records, scans, voice, or custom data</p>
+            </div>
           </div>
-          <span class="text-xs text-slate-500 dark:text-slate-400">Accepts Real Data / Media</span>
         </div>
 
-        <!-- Mode Tabs -->
+        <!-- Real Data Intake Channels -->
         <div class="flex bg-slate-100 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-semibold">
-          <button id="tabBtnImage" onclick="switchInputTab('image')" class="flex-1 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm flex items-center justify-center gap-1.5 transition-all">
-            <i data-lucide="camera" class="w-3.5 h-3.5 text-cyan-500"></i>
-            <span>Photo / Scan</span>
+          <button id="tabBtnImage" onclick="switchInputTab('image')" class="flex-1 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm flex items-center justify-center gap-1 transition-all">
+            <i data-lucide="camera" class="w-3.5 h-3.5 text-teal-500"></i>
+            <span>Rx Photo</span>
           </button>
-          <button id="tabBtnAudio" onclick="switchInputTab('audio')" class="flex-1 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all">
+          <button id="tabBtnAudio" onclick="switchInputTab('audio')" class="flex-1 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1 transition-all">
             <i data-lucide="mic" class="w-3.5 h-3.5 text-rose-500"></i>
             <span>Voice Memo</span>
           </button>
-          <button id="tabBtnCustom" onclick="switchInputTab('custom')" class="flex-1 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all">
-            <i data-lucide="user-plus" class="w-3.5 h-3.5 text-emerald-500"></i>
-            <span>Custom Patient</span>
+          <button id="tabBtnCustom" onclick="switchInputTab('custom')" class="flex-1 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1 transition-all">
+            <i data-lucide="clipboard-pen-line" class="w-3.5 h-3.5 text-blue-500"></i>
+            <span>Patient Form</span>
           </button>
-          <button id="tabBtnText" onclick="switchInputTab('text')" class="flex-1 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all">
+          <button id="tabBtnText" onclick="switchInputTab('text')" class="flex-1 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1 transition-all">
             <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-500"></i>
-            <span>Notes</span>
+            <span>Raw Notes</span>
           </button>
         </div>
 
-        <!-- TAB CONTENT: IMAGE / OCR / CAMERA -->
+        <!-- 1. TAB: PRESCRIPTION & PILL PHOTO SCAN -->
         <div id="tabContentImage" class="flex flex-col gap-3">
           <div class="flex items-center gap-2">
-            <button onclick="openLiveCameraModal()" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-bold text-cyan-700 dark:text-cyan-300 flex items-center justify-center gap-1.5 transition-all">
-              <i data-lucide="video" class="w-4 h-4 text-cyan-500"></i>
-              <span>Live Camera Scanner</span>
+            <button onclick="openLiveCameraModal()" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-bold text-teal-700 dark:text-teal-300 flex items-center justify-center gap-1.5 transition-all">
+              <i data-lucide="video" class="w-4 h-4 text-teal-500"></i>
+              <span>Live Scanner Cam</span>
             </button>
             <button onclick="document.getElementById('prescriptionImageInput').click()" class="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-1.5 transition-all">
-              <i data-lucide="upload" class="w-4 h-4 text-indigo-500"></i>
-              <span>Upload Image / Rx</span>
+              <i data-lucide="upload" class="w-4 h-4 text-blue-500"></i>
+              <span>Upload Rx / Strip</span>
             </button>
           </div>
 
-          <div id="dropZone" onclick="document.getElementById('prescriptionImageInput').click()" class="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-cyan-500 bg-slate-50 dark:bg-slate-950/60 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all group">
+          <div id="dropZone" onclick="document.getElementById('prescriptionImageInput').click()" class="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-teal-500 bg-slate-50 dark:bg-slate-950/60 rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all group">
             <input type="file" id="prescriptionImageInput" accept="image/*" class="hidden" onchange="handleImageSelected(event)">
-            <div class="w-10 h-10 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 group-hover:border-cyan-500 flex items-center justify-center mb-1.5 transition-colors">
-              <i data-lucide="upload-cloud" class="w-5 h-5 text-slate-400 group-hover:text-cyan-500 transition-colors"></i>
+            <div class="w-10 h-10 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 group-hover:border-teal-500 flex items-center justify-center mb-1.5 transition-colors">
+              <i data-lucide="image" class="w-5 h-5 text-slate-400 group-hover:text-teal-500 transition-colors"></i>
             </div>
-            <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">Drop prescription, pill bottle, or discharge sheet</p>
-            <p class="text-[11px] text-slate-400">PNG, JPG, WebP, Camera Capture</p>
+            <p class="text-xs font-bold text-slate-700 dark:text-slate-200">Upload prescription photo or medicine packaging</p>
+            <p class="text-[11px] text-slate-400 mt-0.5">Supports handwritten doctor scripts, discharge summaries, blister packs</p>
           </div>
 
-          <div id="imagePreviewContainer" class="hidden relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 max-h-48">
+          <div id="imagePreviewContainer" class="hidden relative rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 max-h-52">
             <img id="imagePreview" src="" alt="Selected Rx" class="w-full h-full object-contain">
-            <button onclick="clearImage()" class="absolute top-2 right-2 p-1 rounded-full bg-slate-900/80 text-white border border-slate-700">
-              <i data-lucide="x" class="w-4 h-4"></i>
+            <button onclick="clearImage()" class="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white border border-slate-700">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
           </div>
         </div>
 
-        <!-- TAB CONTENT: VOICE AUDIO -->
+        <!-- 2. TAB: VOICE AUDIO MEMO -->
         <div id="tabContentAudio" class="hidden flex flex-col gap-3">
           <div class="bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl p-5 flex flex-col items-center text-center gap-3">
             <div id="recordWaveform" class="w-full h-12 flex items-center justify-center gap-1.5 px-4">
@@ -246,303 +308,358 @@
               <span class="w-1.5 h-8 bg-rose-500/80 rounded-full"></span>
               <span class="w-1.5 h-3 bg-rose-500/40 rounded-full"></span>
             </div>
-            <p id="recordingTimer" class="text-xs font-mono text-slate-500 dark:text-slate-400">00:00</p>
+            <p id="recordingTimer" class="text-xs font-mono font-bold text-slate-600 dark:text-slate-400">00:00</p>
             
             <div class="flex items-center gap-3">
               <button id="btnRecord" onclick="toggleAudioRecording()" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-2 shadow-md shadow-rose-600/20 transition-all">
                 <i data-lucide="mic" class="w-4 h-4"></i>
-                <span id="btnRecordText">Start Live Voice Memo</span>
+                <span id="btnRecordText">Record Voice Dictation</span>
               </button>
             </div>
-            <p class="text-[11px] text-slate-400">Speak frantic symptoms, emergency bystander descriptions, or spoken doctor notes</p>
+            <p class="text-[11px] text-slate-400">Speak emergency patient symptoms, bystander observations, or dictations</p>
           </div>
           <audio id="audioPlayback" controls class="hidden w-full h-9 rounded-lg"></audio>
         </div>
 
-        <!-- TAB CONTENT: CUSTOM PATIENT BUILDER (REAL DATA ENTRY) -->
+        <!-- 3. TAB: COMPREHENSIVE CLINICAL PATIENT FORM -->
         <div id="tabContentCustom" class="hidden flex flex-col gap-3">
-          <div class="grid grid-cols-3 gap-2">
-            <div class="col-span-2">
-              <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Patient Name</label>
-              <input id="customPatientName" type="text" placeholder="e.g. John Doe" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-500">
+          
+          <!-- Patient Photo / Avatar & Demographics -->
+          <div class="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+            <div class="relative w-14 h-14 rounded-xl bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0 cursor-pointer" onclick="document.getElementById('patientPhotoInput').click()">
+              <img id="patientPhotoPreview" src="" alt="Patient Avatar" class="hidden w-full h-full object-cover">
+              <div id="patientPhotoPlaceholder" class="flex flex-col items-center justify-center text-slate-400">
+                <i data-lucide="user" class="w-6 h-6"></i>
+                <span class="text-[8px] font-bold mt-0.5">Photo</span>
+              </div>
+              <input type="file" id="patientPhotoInput" accept="image/*" class="hidden" onchange="handlePatientPhotoSelected(event)">
+            </div>
+            
+            <div class="flex-1 grid grid-cols-3 gap-2">
+              <div class="col-span-2">
+                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Full Name</label>
+                <input id="customPatientName" type="text" placeholder="e.g. Sarah Jenkins" class="w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-1 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-teal-500">
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Age</label>
+                <input id="customPatientAge" type="number" placeholder="68" class="w-full rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-1 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-teal-500">
+              </div>
+            </div>
+          </div>
+
+          <!-- Gender & Blood Group -->
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Gender</label>
+              <select id="customPatientGender" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none">
+                <option value="Female">Female</option>
+                <option value="Male">Male</option>
+                <option value="Other">Other / Non-Binary</option>
+              </select>
             </div>
             <div>
-              <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Age</label>
-              <input id="customPatientAge" type="number" placeholder="45" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-500">
+              <label class="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Blood Group</label>
+              <select id="customBloodGroup" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none">
+                <option value="O+">O Positive (O+)</option>
+                <option value="O-">O Negative (O-)</option>
+                <option value="A+">A Positive (A+)</option>
+                <option value="A-">A Negative (A-)</option>
+                <option value="B+">B Positive (B+)</option>
+                <option value="B-">B Negative (B-)</option>
+                <option value="AB+">AB Positive (AB+)</option>
+                <option value="AB-">AB Negative (AB-)</option>
+              </select>
             </div>
           </div>
 
+          <!-- Vitals Telemetry Row -->
           <div>
-            <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Prescription Drugs (Comma-separated)</label>
-            <input id="customMedsList" type="text" placeholder="e.g. Warfarin 5mg, Ibuprofen 800mg, Metformin 500mg" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-500">
+            <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Vitals Telemetry (Optional)</label>
+            <div class="grid grid-cols-4 gap-1.5">
+              <input id="vitalBp" type="text" placeholder="BP: 130/85" class="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2 py-1 text-[11px] focus:outline-none">
+              <input id="vitalHr" type="text" placeholder="HR: 76 bpm" class="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2 py-1 text-[11px] focus:outline-none">
+              <input id="vitalSpo2" type="text" placeholder="SpO2: 98%" class="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2 py-1 text-[11px] focus:outline-none">
+              <input id="vitalTemp" type="text" placeholder="Temp: 98.6°F" class="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2 py-1 text-[11px] focus:outline-none">
+            </div>
           </div>
 
+          <!-- Symptoms / Chief Complaints -->
           <div>
-            <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Doctor Impression / Symptoms</label>
-            <input id="customSymptoms" type="text" placeholder="e.g. Severe knee joint swelling, elevated blood sugar" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-500">
+            <label class="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Chief Complaint / Observed Symptoms</label>
+            <input id="customSymptoms" type="text" placeholder="e.g. Severe knee arthritis pain, chest tightness on exertion" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-teal-500">
+          </div>
+
+          <!-- Prescribed & Active Medications List Builder -->
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <label class="text-[10px] font-bold uppercase text-slate-400">Medications to Reconcile / Analyze</label>
+              <button onclick="addMedicationRow()" class="text-[11px] font-bold text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-0.5">
+                <i data-lucide="plus" class="w-3 h-3"></i> Add Drug
+              </button>
+            </div>
+            
+            <div id="medicationRowsContainer" class="space-y-2">
+              <div class="med-entry-row grid grid-cols-12 gap-1.5 items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+                <input type="text" placeholder="Drug (e.g. Warfarin 5mg)" class="col-span-5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-1 text-xs med-name-input">
+                <select class="col-span-3 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-1.5 py-1 text-[11px] med-slot-select">
+                  <option value="evening">Evening</option>
+                  <option value="morning">Morning</option>
+                  <option value="afternoon">Afternoon</option>
+                  <option value="night">Night</option>
+                </select>
+                <input type="text" placeholder="Freq (Once daily)" class="col-span-3 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-1.5 py-1 text-[11px] med-freq-input">
+                <button onclick="removeMedicationRow(this)" class="col-span-1 text-slate-400 hover:text-red-500 flex justify-center">
+                  <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- TAB CONTENT: RAW TEXT / CLINICAL NOTES -->
+        <!-- 4. TAB: RAW TEXT / UNSTRUCTURED NOTES -->
         <div id="tabContentText" class="hidden flex flex-col gap-3">
-          <textarea id="textNotesInput" rows="4" placeholder="Type or paste messy clinical notes, handwritten transcriptions, or doctor dictations..." class="w-full rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-cyan-500 p-3 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none scrollbar-thin resize-none font-mono"></textarea>
+          <textarea id="textNotesInput" rows="4" placeholder="Paste doctor's discharge summary, transcription of handwritten prescription, or clinical case notes..." class="w-full rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-teal-500 p-3 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none scrollbar-thin resize-none font-mono"></textarea>
         </div>
 
-        <!-- Common Patient Context Fields (Allergies, History, 14+ Languages) -->
-        <div class="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+        <!-- Common Patient Safety Attributes (Allergies & History) -->
+        <div class="space-y-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
           <div>
-            <label class="block text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Known Patient Allergies</label>
-            <input id="patientAllergiesInput" type="text" placeholder="e.g. Penicillin, Sulfa drugs, Aspirin" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-cyan-500 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none">
+            <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Known Patient Allergies (Critical Contraindication Guard)</label>
+            <input id="patientAllergiesInput" type="text" placeholder="e.g. Penicillin, Sulfa drugs, Aspirin, NSAIDs" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-teal-500 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none">
           </div>
 
           <div>
-            <label class="block text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Pre-existing Medical History</label>
-            <input id="patientHistoryInput" type="text" placeholder="e.g. Atrial Fibrillation, Type 2 Diabetes, Asthma" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-cyan-500 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none">
-          </div>
-
-          <div class="flex items-center justify-between gap-2">
-            <label class="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">Explainer Language (14+ Supported)</label>
-            <select id="targetLanguageSelect" onchange="onLanguageChanged()" class="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-2.5 py-1 text-xs text-slate-800 dark:text-slate-200 focus:outline-none">
-              <option value="en">English</option>
-              <option value="hi">Hindi (हिंदी)</option>
-              <option value="bn">Bengali (বাংলা)</option>
-              <option value="es">Spanish (Español)</option>
-              <option value="fr">French (Français)</option>
-              <option value="de">German (Deutsch)</option>
-              <option value="te">Telugu (తెలుగు)</option>
-              <option value="ta">Tamil (தமிழ்)</option>
-              <option value="mr">Marathi (मराठी)</option>
-              <option value="gu">Gujarati (ગુજરાતી)</option>
-              <option value="ar">Arabic (العربية)</option>
-              <option value="zh">Mandarin (中文)</option>
-              <option value="pt">Portuguese (Português)</option>
-              <option value="ja">Japanese (日本語)</option>
-            </select>
+            <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-0.5">Pre-existing Medical History & Chronic Conditions</label>
+            <input id="patientHistoryInput" type="text" placeholder="e.g. Atrial Fibrillation, Type 2 Diabetes, Asthma, Chronic Kidney Disease" class="w-full rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-teal-500 px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none">
           </div>
         </div>
 
-        <!-- Trigger Analysis Action -->
-        <button id="btnAnalyze" onclick="executeAnalysis()" class="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 via-teal-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/25 transition-all transform active:scale-[0.99]">
-          <i data-lucide="sparkle" class="w-4 h-4"></i>
-          <span>Process & Bridge with Gemini</span>
+        <!-- Primary Action Trigger -->
+        <button id="btnAnalyze" onclick="executeAnalysis()" class="w-full py-3 rounded-xl bg-gradient-to-r from-teal-600 via-cyan-600 to-blue-700 hover:from-teal-500 hover:to-blue-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-teal-600/25 transition-all transform active:scale-[0.99]">
+          <i data-lucide="shield-check" class="w-4 h-4"></i>
+          <span>Analyze & Generate Clinical Bridge</span>
         </button>
       </div>
 
     </section>
 
-    <!-- RIGHT PANEL: STRUCTURED CLINICAL ACTIONS & INTELLIGENCE (Cols 7) -->
-    <section class="lg:col-span-7 flex flex-col gap-5">
+    <!-- RIGHT PANEL: VERIFIED CLINICAL ACTIONS & INTEROPERABILITY (Cols 7) -->
+    <section class="lg:col-span-7 flex flex-col gap-4">
       
       <!-- Placeholder Welcome State -->
       <div id="welcomeState" class="bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-4 transition-colors">
-        <div class="w-16 h-16 rounded-2xl bg-cyan-100 dark:bg-cyan-950/60 border border-cyan-300 dark:border-cyan-800/50 flex items-center justify-center text-cyan-600 dark:text-cyan-400">
-          <i data-lucide="shield-alert" class="w-8 h-8"></i>
+        <div class="w-16 h-16 rounded-2xl bg-teal-100 dark:bg-teal-950/60 border border-teal-300 dark:border-teal-800/50 flex items-center justify-center text-teal-600 dark:text-teal-400">
+          <i data-lucide="heart-pulse" class="w-8 h-8"></i>
         </div>
         <div class="max-w-md">
-          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">Awaiting Medical Inputs</h3>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">Clinical Bridge Ready for Intake</h3>
           <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Select a <strong class="text-cyan-600 dark:text-cyan-400">1-Click Test Scenario</strong> on the left, upload/scan a real prescription, or enter your own custom patient data to see Gemini transform messy inputs into verified clinical actions.
+            Upload an image, record voice dictation, or enter patient data on the left to verify lethal drug clashes, generate emergency triage, formulate a 24-hour schedule, and export interoperable FHIR R4 records.
           </p>
         </div>
       </div>
 
-      <!-- Loading / Analysis Progress Card -->
-      <div id="loadingState" class="hidden bg-white dark:bg-slate-900 border border-cyan-400 dark:border-cyan-800/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-4 shadow-xl">
+      <!-- Loading State -->
+      <div id="loadingState" class="hidden bg-white dark:bg-slate-900 border border-teal-400 dark:border-teal-800/50 rounded-2xl p-8 text-center flex flex-col items-center justify-center gap-4 shadow-xl">
         <div class="relative w-16 h-16 flex items-center justify-center">
-          <div class="w-16 h-16 rounded-full border-4 border-cyan-500/20 border-t-cyan-500 animate-spin"></div>
-          <i data-lucide="brain" class="w-7 h-7 text-cyan-500 absolute"></i>
+          <div class="w-16 h-16 rounded-full border-4 border-teal-500/20 border-t-teal-500 animate-spin"></div>
+          <i data-lucide="activity" class="w-7 h-7 text-teal-500 absolute"></i>
         </div>
         <div>
           <h4 id="loadingTitle" class="text-sm font-bold text-slate-900 dark:text-white">Gemini Multimodal Reasoning...</h4>
-          <p id="loadingSubtitle" class="text-xs text-cyan-600 dark:text-cyan-300/80 font-mono mt-1">Deciphering messy handwriting & cross-referencing contraindications...</p>
+          <p id="loadingSubtitle" class="text-xs text-teal-600 dark:text-teal-300 font-mono mt-1">Cross-referencing drug contraindications and generating clinical action plan...</p>
         </div>
       </div>
 
-      <!-- MAIN RESULTS DASHBOARD (Hidden until analyzed) -->
-      <div id="resultsDashboard" class="hidden flex flex-col gap-5">
+      <!-- MAIN RESULTS DASHBOARD -->
+      <div id="resultsDashboard" class="hidden flex flex-col gap-4">
 
-        <!-- 1. EMERGENCY TRIAGE & RED ALERT BANNER -->
-        <div id="triageBanner" class="p-5 rounded-2xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-md dark:shadow-xl">
-          <div class="flex items-start gap-3.5">
-            <div id="triageIconBox" class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0">
-              <i id="triageIcon" data-lucide="alert-triangle" class="w-6 h-6"></i>
-            </div>
-            <div>
-              <div class="flex items-center gap-2 flex-wrap">
-                <span id="triageLevelTag" class="px-2.5 py-0.5 text-xs font-black rounded-full uppercase tracking-wide">RED: EMERGENCY</span>
-                <span id="triageScoreTag" class="text-xs font-mono text-slate-600 dark:text-slate-300">Triage Score: 98/100</span>
+        <!-- 1. PATIENT CLINICAL PROFILE & TRIAGE HEADER -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm dark:shadow-xl transition-colors">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+            
+            <div class="flex items-center gap-3.5">
+              <div id="patientAvatarBox" class="w-14 h-14 rounded-2xl bg-teal-100 dark:bg-teal-950 border border-teal-300 dark:border-teal-800 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img id="patientProfileImage" src="" alt="Patient Avatar" class="hidden w-full h-full object-cover">
+                <i id="patientDefaultIcon" data-lucide="user" class="w-7 h-7 text-teal-600 dark:text-teal-400"></i>
               </div>
-              <h3 id="triageTitle" class="text-base font-bold text-slate-900 dark:text-white mt-1">Critical Interaction Detected</h3>
-              <p id="triageSummary" class="text-xs text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed"></p>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h3 id="patientDisplayName" class="text-base font-extrabold text-slate-900 dark:text-white">Patient Record</h3>
+                  <span id="patientBloodBadge" class="px-2 py-0.5 text-[10px] font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800 rounded-md">O+</span>
+                </div>
+                <p id="patientDemographics" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium"></p>
+              </div>
+            </div>
+
+            <!-- Triage Severity Tag -->
+            <div class="flex items-center gap-2">
+              <div id="triageBadgeBox" class="px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm">
+                <i id="triageBadgeIcon" data-lucide="alert-triangle" class="w-4 h-4"></i>
+                <span id="triageLevelText">RED: CRITICAL TRIAGE</span>
+              </div>
             </div>
           </div>
-          
-          <!-- Emergency Quick Action Button -->
-          <div class="flex items-center gap-2 w-full md:w-auto">
-            <button onclick="triggerEmergencySOS()" class="w-full md:w-auto px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-red-600/30 transition-all">
-              <i data-lucide="phone-call" class="w-4 h-4"></i>
-              <span>1-Tap EMS SOS</span>
+
+          <!-- Vitals Summary Bar -->
+          <div id="vitalsDisplayBar" class="grid grid-cols-4 gap-2 pt-3 text-center text-xs">
+            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <span class="text-[10px] text-slate-400 uppercase font-bold">Blood Pressure</span>
+              <div id="dispBp" class="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">120/80 mmHg</div>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <span class="text-[10px] text-slate-400 uppercase font-bold">Heart Rate</span>
+              <div id="dispHr" class="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">74 bpm</div>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <span class="text-[10px] text-slate-400 uppercase font-bold">SpO2 Oxygen</span>
+              <div id="dispSpo2" class="font-mono font-bold text-teal-600 dark:text-teal-400 text-xs">98%</div>
+            </div>
+            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <span class="text-[10px] text-slate-400 uppercase font-bold">Temperature</span>
+              <div id="dispTemp" class="font-mono font-bold text-slate-800 dark:text-slate-200 text-xs">98.6°F</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. CLINICAL TRIAGE IMPRESSION & EMERGENCY PROTOCOL -->
+        <div id="triageProtocolCard" class="p-5 rounded-2xl border transition-all shadow-md">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <div id="triageIconBox" class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <i id="triageIcon" data-lucide="shield-alert" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h4 id="triageTitle" class="text-sm font-bold text-slate-900 dark:text-white"></h4>
+                <p id="triageSummary" class="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed"></p>
+              </div>
+            </div>
+            <button onclick="triggerEmergencySOS()" class="flex-shrink-0 px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-red-600/30">
+              <i data-lucide="phone-call" class="w-3.5 h-3.5"></i>
+              <span>EMS SOS</span>
             </button>
           </div>
         </div>
 
-        <!-- 2. ENVIRONMENTAL RISK CONTEXT BANNER -->
-        <div id="envRiskCard" class="hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm dark:shadow-xl transition-colors">
-          <div class="flex items-center justify-between mb-2">
-            <div class="flex items-center gap-2">
-              <i data-lucide="cloud-sun" class="w-4 h-4 text-cyan-500"></i>
-              <h4 class="text-xs font-bold uppercase text-slate-700 dark:text-slate-300">Environmental Stress & Weather Feed</h4>
-            </div>
-            <span id="envRiskBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full"></span>
-          </div>
-          <div class="grid grid-cols-3 gap-2 text-center text-xs mb-2">
-            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-              <span class="text-[10px] text-slate-400 uppercase">Air Quality</span>
-              <div id="envAqi" class="font-mono font-bold text-amber-600 dark:text-amber-400 text-sm">AQI 145</div>
-            </div>
-            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-              <span class="text-[10px] text-slate-400 uppercase">Temp / Humidity</span>
-              <div id="envTemp" class="font-mono font-bold text-slate-800 dark:text-slate-200 text-sm">34°C (78%)</div>
-            </div>
-            <div class="p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-              <span class="text-[10px] text-slate-400 uppercase">Pollen Count</span>
-              <div id="envPollen" class="font-mono font-bold text-rose-600 dark:text-rose-400 text-sm">HIGH</div>
-            </div>
-          </div>
-          <div id="envAlertsContainer" class="space-y-1.5 text-xs"></div>
-        </div>
-
         <!-- 3. PHARMACOLOGICAL SAFETY & CONTRAINDICATION MATRIX -->
-        <div id="safetyCard" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm dark:shadow-xl transition-colors">
-          <div class="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm dark:shadow-xl transition-colors">
+          <div class="flex items-center justify-between mb-3 border-b border-slate-200 dark:border-slate-800 pb-2.5">
             <div class="flex items-center gap-2">
-              <i data-lucide="shield-check" class="w-4 h-4 text-cyan-500"></i>
+              <i data-lucide="shield-check" class="w-4 h-4 text-teal-500"></i>
               <h3 class="text-sm font-bold text-slate-900 dark:text-white">Pharmacological Safety & Contraindication Matrix</h3>
             </div>
-            <span id="safetyBadge" class="text-[11px] font-bold px-2.5 py-1 rounded-full"></span>
+            <span id="safetyBadge" class="text-[11px] font-bold px-2.5 py-0.5 rounded-full"></span>
           </div>
 
-          <div id="interactionList" class="space-y-3">
+          <div id="interactionList" class="space-y-2.5">
             <!-- Dynamically populated -->
           </div>
         </div>
 
-        <!-- 4. EXTRACTED MEDICATIONS & 24-HOUR CHRONO-DOSING -->
+        <!-- 4. 24-HOUR MEDICATION TIMETABLE & PILL APPEARANCE -->
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm dark:shadow-xl transition-colors">
-          <div class="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div class="flex items-center justify-between mb-3 border-b border-slate-200 dark:border-slate-800 pb-2.5">
             <div class="flex items-center gap-2">
-              <i data-lucide="pill" class="w-4 h-4 text-cyan-500"></i>
-              <h3 class="text-sm font-bold text-slate-900 dark:text-white">Extracted Prescriptions & Pill Appearance</h3>
+              <i data-lucide="pill" class="w-4 h-4 text-teal-500"></i>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white">24-Hour Medication Schedule & Pill Appearance</h3>
             </div>
-            <span id="patientMeta" class="text-xs text-slate-500 dark:text-slate-400 font-medium"></span>
           </div>
 
-          <!-- Medications Table -->
+          <!-- Table -->
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
               <thead>
                 <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold uppercase text-[10px]">
-                  <th class="py-2 px-3">Medication & Generic</th>
+                  <th class="py-2 px-3">Medication & Generic Alternative</th>
                   <th class="py-2 px-3">Visual Appearance</th>
-                  <th class="py-2 px-3">Dosage & Frequency</th>
+                  <th class="py-2 px-3">Dosage & Slot</th>
                   <th class="py-2 px-3">Indication & Precautions</th>
                 </tr>
               </thead>
-              <tbody id="medicationsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-800 dark:text-slate-200 font-medium">
+              <tbody id="medicationsTableBody" class="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-800 dark:text-slate-200">
                 <!-- Dynamically populated -->
               </tbody>
             </table>
           </div>
 
-          <!-- 24-Hour Visual Schedule Timeline with Checklist -->
-          <div class="mt-5 pt-4 border-t border-slate-200 dark:border-slate-800">
-            <div class="flex items-center justify-between mb-3">
-              <h4 class="text-xs font-bold uppercase text-slate-500 dark:text-slate-400 tracking-wider">Daily Chrono-Dosing & Adherence Checklist</h4>
-              <span id="adherenceRateTag" class="text-[11px] font-mono text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-200 dark:border-cyan-800/50">Adherence: 100% Target</span>
+          <!-- 4-Slot Timeline Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs mt-4 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div class="flex items-center justify-between text-teal-600 dark:text-teal-400 font-bold mb-1">
+                <span class="flex items-center gap-1"><i data-lucide="sunrise" class="w-3.5 h-3.5"></i> Morning</span>
+                <span class="text-[10px] text-slate-400 font-mono">08:00 AM</span>
+              </div>
+              <p id="scheduleMorning" class="text-[11px] text-slate-600 dark:text-slate-300">No scheduled medication.</p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 text-xs">
-              <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-                <div>
-                  <div class="flex items-center justify-between text-cyan-600 dark:text-cyan-400 font-bold mb-1">
-                    <span class="flex items-center gap-1"><i data-lucide="sunrise" class="w-3.5 h-3.5"></i> Morning</span>
-                    <span class="text-[10px] text-slate-400 font-mono">08:00 AM</span>
-                  </div>
-                  <p id="scheduleMorning" class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">No scheduled medication.</p>
-                </div>
-                <label class="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer pt-2 border-t border-slate-200 dark:border-slate-900">
-                  <input type="checkbox" onchange="updateAdherence()" class="rounded text-cyan-600 focus:ring-0">
-                  <span>Mark as Taken</span>
-                </label>
+            <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div class="flex items-center justify-between text-amber-600 dark:text-amber-400 font-bold mb-1">
+                <span class="flex items-center gap-1"><i data-lucide="sun" class="w-3.5 h-3.5"></i> Afternoon</span>
+                <span class="text-[10px] text-slate-400 font-mono">02:00 PM</span>
               </div>
+              <p id="scheduleAfternoon" class="text-[11px] text-slate-600 dark:text-slate-300">No scheduled medication.</p>
+            </div>
 
-              <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-                <div>
-                  <div class="flex items-center justify-between text-amber-600 dark:text-amber-400 font-bold mb-1">
-                    <span class="flex items-center gap-1"><i data-lucide="sun" class="w-3.5 h-3.5"></i> Afternoon</span>
-                    <span class="text-[10px] text-slate-400 font-mono">02:00 PM</span>
-                  </div>
-                  <p id="scheduleAfternoon" class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">No scheduled medication.</p>
-                </div>
-                <label class="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer pt-2 border-t border-slate-200 dark:border-slate-900">
-                  <input type="checkbox" onchange="updateAdherence()" class="rounded text-cyan-600 focus:ring-0">
-                  <span>Mark as Taken</span>
-                </label>
+            <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div class="flex items-center justify-between text-indigo-600 dark:text-indigo-400 font-bold mb-1">
+                <span class="flex items-center gap-1"><i data-lucide="sunset" class="w-3.5 h-3.5"></i> Evening</span>
+                <span class="text-[10px] text-slate-400 font-mono">06:00 PM</span>
               </div>
+              <p id="scheduleEvening" class="text-[11px] text-slate-600 dark:text-slate-300">No scheduled medication.</p>
+            </div>
 
-              <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-                <div>
-                  <div class="flex items-center justify-between text-indigo-600 dark:text-indigo-400 font-bold mb-1">
-                    <span class="flex items-center gap-1"><i data-lucide="sunset" class="w-3.5 h-3.5"></i> Evening</span>
-                    <span class="text-[10px] text-slate-400 font-mono">06:00 PM</span>
-                  </div>
-                  <p id="scheduleEvening" class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">No scheduled medication.</p>
-                </div>
-                <label class="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer pt-2 border-t border-slate-200 dark:border-slate-900">
-                  <input type="checkbox" onchange="updateAdherence()" class="rounded text-cyan-600 focus:ring-0">
-                  <span>Mark as Taken</span>
-                </label>
+            <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div class="flex items-center justify-between text-purple-600 dark:text-purple-400 font-bold mb-1">
+                <span class="flex items-center gap-1"><i data-lucide="moon" class="w-3.5 h-3.5"></i> Night</span>
+                <span class="text-[10px] text-slate-400 font-mono">10:00 PM</span>
               </div>
-
-              <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
-                <div>
-                  <div class="flex items-center justify-between text-purple-600 dark:text-purple-400 font-bold mb-1">
-                    <span class="flex items-center gap-1"><i data-lucide="moon" class="w-3.5 h-3.5"></i> Night</span>
-                    <span class="text-[10px] text-slate-400 font-mono">10:00 PM</span>
-                  </div>
-                  <p id="scheduleNight" class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">No scheduled medication.</p>
-                </div>
-                <label class="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer pt-2 border-t border-slate-200 dark:border-slate-900">
-                  <input type="checkbox" onchange="updateAdherence()" class="rounded text-cyan-600 focus:ring-0">
-                  <span>Mark as Taken</span>
-                </label>
-              </div>
+              <p id="scheduleNight" class="text-[11px] text-slate-600 dark:text-slate-300">No scheduled medication.</p>
             </div>
           </div>
         </div>
 
-        <!-- 5. PLAIN-LANGUAGE PATIENT GUIDE & RED FLAGS -->
+        <!-- 5. EMERGENCY FACILITIES & 24/7 PHARMACIES -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm dark:shadow-xl transition-colors">
+          <div class="flex items-center justify-between mb-3 border-b border-slate-200 dark:border-slate-800 pb-2.5">
+            <div class="flex items-center gap-2">
+              <i data-lucide="hospital" class="w-4 h-4 text-teal-500"></i>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white">Nearby Verified Trauma Care & 24/7 Pharmacies</h3>
+            </div>
+            <span id="facilitiesLocationLabel" class="text-[11px] text-slate-400 font-mono"></span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div id="hospitalsList" class="space-y-2">
+              <!-- Dynamically populated -->
+            </div>
+            <div id="pharmaciesList" class="space-y-2">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. MULTILINGUAL PATIENT EXPLAINER & RED FLAGS -->
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm dark:shadow-xl transition-colors">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-2">
-              <i data-lucide="book-open" class="w-4 h-4 text-cyan-500"></i>
+              <i data-lucide="book-open" class="w-4 h-4 text-teal-500"></i>
               <h3 class="text-sm font-bold text-slate-900 dark:text-white">Multilingual Patient Explainer & Red Flags</h3>
             </div>
-            <button onclick="speakPatientSummary()" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-cyan-700 dark:text-cyan-400 transition-colors flex items-center gap-1 text-xs font-semibold" title="Read Aloud">
+            <button onclick="speakPatientSummary()" class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-teal-700 dark:text-teal-300 transition-colors flex items-center gap-1 text-xs font-semibold" title="Listen with Voice Synthesis">
               <i data-lucide="volume-2" class="w-4 h-4"></i>
               <span>Listen</span>
             </button>
           </div>
 
-          <div class="p-4 rounded-xl bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800/40 mb-3">
-            <p id="plainSummaryText" class="text-xs text-cyan-950 dark:text-cyan-200 leading-relaxed font-medium"></p>
+          <div class="p-4 rounded-xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/40 mb-3">
+            <p id="plainSummaryText" class="text-xs text-teal-950 dark:text-teal-200 leading-relaxed font-medium"></p>
           </div>
 
           <!-- Red Flags -->
           <div class="border-t border-slate-200 dark:border-slate-800 pt-3">
             <h4 class="text-[11px] font-bold uppercase text-red-600 dark:text-red-400 tracking-wider mb-2 flex items-center gap-1.5">
               <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
-              <span>Immediate Red-Flag Symptoms (Seek Immediate Medical Care)</span>
+              <span>Immediate Red-Flag Symptoms</span>
             </h4>
             <ul id="redFlagList" class="space-y-1.5 text-xs text-slate-700 dark:text-slate-300">
               <!-- Dynamically populated -->
@@ -550,23 +667,27 @@
           </div>
         </div>
 
-        <!-- 6. CLINICAL SOAP NOTES & HL7/FHIR EXPORT ACTIONS -->
+        <!-- 7. CLINICAL ACTIONS & EXPORT HUB -->
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm dark:shadow-xl transition-colors">
           <div class="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-800 pb-3">
             <div class="flex items-center gap-2">
-              <i data-lucide="file-code" class="w-4 h-4 text-cyan-500"></i>
+              <i data-lucide="file-code" class="w-4 h-4 text-teal-500"></i>
               <h3 class="text-sm font-bold text-slate-900 dark:text-white">Clinical Interoperability & Export Hub</h3>
             </div>
-            <div class="flex items-center gap-2">
-              <button onclick="downloadClinicalReportDirectPdf()" class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all">
-                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="downloadClinicalReportDirectPdf()" class="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all">
+                <i data-lucide="file-down" class="w-3.5 h-3.5"></i>
                 <span>Download PDF</span>
+              </button>
+              <button onclick="printClinicalReportDirect()" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1 transition-all">
+                <i data-lucide="printer" class="w-3.5 h-3.5"></i>
+                <span>Print</span>
               </button>
               <button onclick="openHealthCardModal()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all">
                 <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-                <span>QR Card</span>
+                <span>Emergency QR Pass</span>
               </button>
-              <button onclick="toggleInteropView()" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-cyan-700 dark:text-cyan-400 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1 transition-all">
+              <button onclick="toggleInteropView()" class="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-teal-700 dark:text-teal-300 border border-slate-200 dark:border-slate-700 text-xs font-bold flex items-center gap-1 transition-all">
                 <i data-lucide="code" class="w-3.5 h-3.5"></i>
                 <span id="interopToggleBtnText">FHIR / HL7</span>
               </button>
@@ -576,28 +697,28 @@
           <!-- SOAP Note Tabs -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
             <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-              <span class="text-cyan-700 dark:text-cyan-400 font-bold uppercase text-[10px]">Subjective (S)</span>
+              <span class="text-teal-700 dark:text-teal-400 font-bold uppercase text-[10px]">Subjective (S)</span>
               <p id="soapSubjective" class="text-slate-700 dark:text-slate-300 mt-1 text-[11px] leading-relaxed"></p>
             </div>
             <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-              <span class="text-cyan-700 dark:text-cyan-400 font-bold uppercase text-[10px]">Objective (O)</span>
+              <span class="text-teal-700 dark:text-teal-400 font-bold uppercase text-[10px]">Objective (O)</span>
               <p id="soapObjective" class="text-slate-700 dark:text-slate-300 mt-1 text-[11px] leading-relaxed"></p>
             </div>
             <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-              <span class="text-cyan-700 dark:text-cyan-400 font-bold uppercase text-[10px]">Assessment (A)</span>
+              <span class="text-teal-700 dark:text-teal-400 font-bold uppercase text-[10px]">Assessment (A)</span>
               <p id="soapAssessment" class="text-slate-700 dark:text-slate-300 mt-1 text-[11px] leading-relaxed"></p>
             </div>
             <div class="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-              <span class="text-cyan-700 dark:text-cyan-400 font-bold uppercase text-[10px]">Plan (P)</span>
+              <span class="text-teal-700 dark:text-teal-400 font-bold uppercase text-[10px]">Plan (P)</span>
               <p id="soapPlan" class="text-slate-700 dark:text-slate-300 mt-1 text-[11px] leading-relaxed"></p>
             </div>
           </div>
 
-          <!-- FHIR & HL7 Viewers (Hidden by default) -->
+          <!-- FHIR & HL7 Viewers -->
           <div id="interopViewerContainer" class="hidden mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
             <div class="flex items-center justify-between">
               <div class="flex gap-2 text-xs">
-                <button id="tabBtnFhir" onclick="switchInteropTab('fhir')" class="px-3 py-1 rounded bg-slate-200 dark:bg-slate-800 text-cyan-700 dark:text-cyan-400 font-bold">FHIR R4 JSON</button>
+                <button id="tabBtnFhir" onclick="switchInteropTab('fhir')" class="px-3 py-1 rounded bg-slate-200 dark:bg-slate-800 text-teal-700 dark:text-teal-300 font-bold">FHIR R4 JSON</button>
                 <button id="tabBtnHl7" onclick="switchInteropTab('hl7')" class="px-3 py-1 rounded bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400">HL7 v2.5 Message</button>
               </div>
               <button onclick="copyCurrentInteropCode()" class="px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs text-slate-700 dark:text-slate-200 flex items-center gap-1">
@@ -605,7 +726,7 @@
                 <span id="copyInteropText">Copy</span>
               </button>
             </div>
-            <pre id="fhirJsonBlock" class="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-cyan-800 dark:text-cyan-300 overflow-x-auto max-h-60 scrollbar-thin"></pre>
+            <pre id="fhirJsonBlock" class="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-teal-800 dark:text-teal-300 overflow-x-auto max-h-60 scrollbar-thin"></pre>
             <pre id="hl7Block" class="hidden p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-amber-800 dark:text-amber-300 overflow-x-auto max-h-60 scrollbar-thin"></pre>
           </div>
         </div>
@@ -617,10 +738,10 @@
 
   <!-- LIVE CAMERA SCANNER MODAL -->
   <div id="liveCameraModal" class="hidden fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-    <div class="bg-white dark:bg-slate-900 border border-cyan-500/50 rounded-2xl max-w-lg w-full p-5 shadow-2xl relative flex flex-col items-center">
+    <div class="bg-white dark:bg-slate-900 border border-teal-500/50 rounded-2xl max-w-lg w-full p-5 shadow-2xl relative flex flex-col items-center">
       <div class="w-full flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
-          <i data-lucide="camera" class="w-5 h-5 text-cyan-500"></i>
+          <i data-lucide="camera" class="w-5 h-5 text-teal-500"></i>
           <h3 class="text-sm font-bold text-slate-900 dark:text-white">Live Prescription Scanner Viewfinder</h3>
         </div>
         <button onclick="closeLiveCameraModal()" class="p-1 rounded-full text-slate-400 hover:text-slate-900 dark:hover:text-white">
@@ -630,10 +751,10 @@
 
       <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center mb-4">
         <video id="cameraVideo" autoplay playsinline class="w-full h-full object-cover"></video>
-        <div class="absolute inset-4 border-2 border-dashed border-cyan-400/70 rounded-lg pointer-events-none flex flex-col justify-between p-2">
-          <div class="flex justify-between text-[10px] text-cyan-300 font-mono"><span>[SCANNING RX]</span><span>AI OCR</span></div>
-          <div class="w-full h-0.5 bg-cyan-400/80 scan-line"></div>
-          <div class="text-[10px] text-cyan-300/80 text-center font-mono">Align prescription within frame</div>
+        <div class="absolute inset-4 border-2 border-dashed border-teal-400/70 rounded-lg pointer-events-none flex flex-col justify-between p-2">
+          <div class="flex justify-between text-[10px] text-teal-300 font-mono"><span>[SCANNING RX]</span><span>AI MULTIMODAL</span></div>
+          <div class="w-full h-0.5 bg-teal-400/80 scan-line"></div>
+          <div class="text-[10px] text-teal-300/80 text-center font-mono">Align prescription or medicine pack</div>
         </div>
       </div>
 
@@ -641,7 +762,7 @@
 
       <div class="flex items-center gap-3 w-full justify-end">
         <button onclick="closeLiveCameraModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:text-white text-xs font-bold">Cancel</button>
-        <button onclick="captureCameraSnapshot()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-cyan-500/25">
+        <button onclick="captureCameraSnapshot()" class="px-5 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-blue-700 hover:from-teal-500 hover:to-blue-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-teal-500/25">
           <i data-lucide="aperture" class="w-4 h-4"></i>
           <span>Capture & Ingest</span>
         </button>
@@ -657,48 +778,53 @@
           <i data-lucide="radio" class="w-6 h-6 animate-pulse"></i>
         </div>
         <div>
-          <h3 class="text-base font-bold text-slate-900 dark:text-white">Emergency EMS / 911 Dispatch Payload</h3>
+          <h3 class="text-base font-bold text-slate-900 dark:text-white">Emergency EMS Dispatch Payload</h3>
           <p class="text-xs text-red-600 dark:text-red-300">Automated Triage & Active Medication Transfer</p>
         </div>
       </div>
 
       <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 font-mono text-xs text-slate-800 dark:text-slate-300 space-y-2 mb-4">
-        <p><strong class="text-red-600 dark:text-red-400">[PRIORITY 1 DISPATCH]</strong> Suspected STEMI / Acute Contraindication</p>
+        <p><strong class="text-red-600 dark:text-red-400">[PRIORITY 1 DISPATCH]</strong> Suspected Acute Event / Contraindication</p>
         <p><strong>Patient:</strong> <span id="sosPatientName"></span></p>
         <p><strong>Allergies:</strong> <span id="sosAllergies" class="text-amber-600 dark:text-amber-400"></span></p>
         <p><strong>Active Meds:</strong> <span id="sosMeds"></span></p>
-        <p><strong>Clinical Note:</strong> <span id="sosClinicalNote"></span></p>
-        <p class="text-[10px] text-slate-400">GPS Coords: Simulated 37.7749° N, 122.4194° W | Sent to Regional Trauma Center</p>
+        <p><strong>Clinical Impression:</strong> <span id="sosClinicalNote"></span></p>
       </div>
 
       <div class="flex items-center justify-end gap-3">
         <button onclick="closeEmergencySOS()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:text-white text-xs font-bold">Close</button>
-        <button onclick="alert('Simulation: Emergency dispatch signal sent to local EMS dispatch console.'); closeEmergencySOS();" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-red-600/30">
-          <i data-lucide="send" class="w-3.5 h-3.5"></i>
-          <span>Confirm Dispatch (Demo)</span>
-        </button>
+        <a id="sosDirectCallLink" href="tel:112" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-red-600/30">
+          <i data-lucide="phone-call" class="w-3.5 h-3.5"></i>
+          <span>Call Dispatch Now</span>
+        </a>
       </div>
     </div>
   </div>
 
-  <!-- PURE EMERGENCY QR SCANNER CARD (CLEAN: ONLY QR CODE) -->
+  <!-- PURE EMERGENCY QR SCANNER CARD (READABLE FORMAT) -->
   <div id="healthCardModal" class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
     <div class="bg-white dark:bg-slate-900 border border-indigo-300 dark:border-indigo-500/50 rounded-3xl max-w-sm w-full p-6 shadow-2xl relative text-center flex flex-col items-center">
       <div class="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-2">
         <i data-lucide="qr-code" class="w-6 h-6"></i>
       </div>
-      <h3 class="text-base font-bold text-slate-900 dark:text-white">Emergency Medical QR</h3>
-      <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-4 px-2">
-        Scan with any phone camera to view full patient medical record, drug allergies & active prescription.
+      <h3 class="text-base font-bold text-slate-900 dark:text-white">Emergency Medical QR Pass</h3>
+      <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3 px-2">
+        Scan with any phone camera to view clean, immediately readable patient medical record, drug allergies & medication timetable.
       </p>
 
+      <!-- Toggle Format -->
+      <div class="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg text-[10px] font-bold mb-3">
+        <button id="qrFmtTextBtn" onclick="switchQrFormat('text')" class="px-2.5 py-1 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm">Human Readable</button>
+        <button id="qrFmtJsonBtn" onclick="switchQrFormat('json')" class="px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400">FHIR JSON</button>
+      </div>
+
       <!-- Pure QR Code Container -->
-      <div class="p-4 bg-white rounded-2xl shadow-md border border-slate-200 inline-block mb-5">
+      <div class="p-4 bg-white rounded-2xl shadow-md border border-slate-200 inline-block mb-4">
         <div id="qrcode" class="flex justify-center"></div>
       </div>
 
       <button onclick="closeHealthCardModal()" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-md transition-all">
-        Done
+        Close Pass
       </button>
     </div>
   </div>
@@ -708,20 +834,20 @@
     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
       <h3 class="text-base font-bold text-slate-900 dark:text-white mb-1">Configure Gemini API Key</h3>
       <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
-        Enter your Google Gemini API key to enable live multimodal calls (or leave blank to use the built-in clinical intelligence demo).
+        Enter your Google Gemini API key to enable live multimodal analysis (or leave blank to use the built-in clinical intelligence demo).
       </p>
 
-      <input id="apiKeyInput" type="password" placeholder="AIzaSy..." class="w-full rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-cyan-500 px-3 py-2 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none mb-4 font-mono">
+      <input id="apiKeyInput" type="password" placeholder="AIzaSy..." class="w-full rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 focus:border-teal-500 px-3 py-2 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none mb-4 font-mono">
 
       <div class="flex items-center justify-end gap-3">
         <button onclick="closeApiKeyModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:text-white text-xs font-bold">Cancel</button>
-        <button onclick="saveApiKey()" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-extrabold">Save Key</button>
+        <button onclick="saveApiKey()" class="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-extrabold">Save Key</button>
       </div>
     </div>
   </div>
 
-  <!-- Hidden Container for Direct PDF Rendering -->
-  <div id="pdfRenderContainer" class="hidden"></div>
+  <!-- OFF-SCREEN CONTAINER FOR DIRECT PDF RENDERING -->
+  <div id="pdfRenderContainer"></div>
 
   <!-- Application Logic -->
   <script src="/static/js/app.js"></script>

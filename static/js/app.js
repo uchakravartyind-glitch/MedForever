@@ -1,13 +1,21 @@
 /**
- * MedForever Frontend Application Logic v3.0
+ * MedForever Frontend Application Logic v3.5
  * Universal Multimodal Medical Bridge
- * Features: Light/Dark Theme, 14+ Languages, Direct PDF Download, Pure QR Card, Custom Patient Builder
+ * Features:
+ * - GPS Geolocation & Country-Aware Emergency Helpline Directory
+ * - Real Patient Multimodal Intake (Rx Photo, Pill Webcam Scanner, Voice Dictation, Custom Form with Photo/Vitals)
+ * - Dynamic Medication List Builder
+ * - Phone Camera-Readable Emergency Medical QR Pass (Clean Text + FHIR Toggle)
+ * - Fixed Direct PDF Generation via Off-screen Render Target
+ * - Multilingual Explainer & Speech Synthesis in 14+ Languages
+ * - Light/Dark Theme & Discreet Scenarios Dropdown
  */
 
 let currentAnalysisData = null;
 let currentFhirBundle = null;
 let currentHl7Message = null;
 let selectedImageBase64 = null;
+let patientPhotoBase64 = null;
 let recordedAudioBase64 = null;
 let mediaRecorder = null;
 let audioChunks = [];
@@ -15,6 +23,15 @@ let recordingInterval = null;
 let recordSeconds = 0;
 let cameraStream = null;
 let currentInteropTab = 'fhir';
+let currentQrFormat = 'text';
+
+// User GPS Location State
+let userLocation = {
+  lat: null,
+  lon: null,
+  country_code: 'US',
+  city: 'New York'
+};
 
 // Multi-lingual Translation & Voice Mapping
 const LANGUAGE_CONFIG = {
@@ -41,9 +58,25 @@ document.addEventListener("DOMContentLoaded", () => {
     window.lucide.createIcons();
   }
   checkApiKeyStatus();
+  
+  // Auto-detect location silently on page load
+  detectUserLocation(true);
+
+  // Close demo dropdown if clicked outside
+  document.addEventListener("click", (e) => {
+    const menu = document.getElementById("demoDropdownMenu");
+    const btn = document.getElementById("demoDropdownBtn");
+    if (menu && !menu.classList.contains("hidden")) {
+      if (!menu.contains(e.target) && !btn.contains(e.target)) {
+        menu.classList.add("hidden");
+      }
+    }
+  });
 });
 
-// Theme Management (Light / Dark Mode)
+// ==========================================
+// 1. THEME MANAGEMENT (Light / Dark Mode)
+// ==========================================
 function initTheme() {
   const savedTheme = localStorage.getItem("medforever_theme") || "dark";
   if (savedTheme === "dark") {
@@ -69,24 +102,116 @@ function updateThemeIcon() {
   }
 }
 
-// Tab Switching (Image / Audio / Custom / Text)
+// ==========================================
+// 2. GPS GEOLOCATION & EMERGENCY HELPLINES
+// ==========================================
+async function detectUserLocation(silent = false) {
+  const gpsText = document.getElementById("gpsLocationText");
+  if (!silent && gpsText) {
+    gpsText.innerText = "Locating...";
+  }
+
+  if (!navigator.geolocation) {
+    if (!silent) alert("Geolocation is not supported by your browser.");
+    fetchEmergencyDirectory();
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      userLocation.lat = position.coords.latitude;
+      userLocation.lon = position.coords.longitude;
+      
+      // Reverse geocode to get country code & city
+      try {
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${userLocation.lat}&lon=${userLocation.lon}`);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          const address = geoData.address || {};
+          userLocation.country_code = (address.country_code || 'US').toUpperCase();
+          userLocation.city = address.city || address.town || address.village || address.state || 'Local Region';
+          
+          if (gpsText) {
+            gpsText.innerText = `${userLocation.city}, ${userLocation.country_code}`;
+          }
+        }
+      } catch (err) {
+        console.warn("Reverse geocode fallback:", err);
+      }
+
+      await fetchEmergencyDirectory();
+    },
+    (err) => {
+      console.warn("GPS access denied or unavailable:", err.message);
+      if (gpsText) gpsText.innerText = "Location (Default)";
+      fetchEmergencyDirectory();
+    },
+    { timeout: 8000, enableHighAccuracy: false }
+  );
+}
+
+async function fetchEmergencyDirectory() {
+  try {
+    const res = await fetch("/api/emergency/lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        triage_level: currentAnalysisData?.triage?.level || "AMBER",
+        lat: userLocation.lat,
+        lon: userLocation.lon,
+        country_code: userLocation.country_code,
+        city: userLocation.city
+      })
+    });
+
+    if (!res.ok) return;
+    const data = await res.json();
+    const helpline = data.helplines || {};
+
+    // Update banner
+    const countryBadge = document.getElementById("activeCountryBadge");
+    const emergDisplay = document.getElementById("emergencyNumDisplay");
+    const ambDisplay = document.getElementById("ambulanceNumDisplay");
+    const natDisplay = document.getElementById("nationalHealthNumDisplay");
+    const callBtn = document.getElementById("quickCallDispatchBtn");
+    const sosCallLink = document.getElementById("sosDirectCallLink");
+
+    if (countryBadge) countryBadge.innerText = `${helpline.country || userLocation.country_code} Emergency Hub`;
+    if (emergDisplay) emergDisplay.innerText = helpline.emergency || "112 / 911";
+    if (ambDisplay) ambDisplay.innerText = helpline.ambulance || "108 / 911";
+    if (natDisplay) natDisplay.innerText = helpline.national_health || "1075 / 211";
+    if (callBtn) callBtn.href = `tel:${helpline.emergency || '112'}`;
+    if (sosCallLink) sosCallLink.href = `tel:${helpline.emergency || '112'}`;
+
+    // If analysis active, update facilities section
+    if (currentAnalysisData) {
+      renderNearbyFacilities(data);
+    }
+  } catch (err) {
+    console.warn("Emergency lookup failed:", err);
+  }
+}
+
+// ==========================================
+// 3. MULTIMODAL INTAKE TABS & CONTROLS
+// ==========================================
 function switchInputTab(tab) {
   const tabs = ['image', 'audio', 'custom', 'text'];
   tabs.forEach(t => {
     const content = document.getElementById(`tabContent${t.charAt(0).toUpperCase() + t.slice(1)}`);
     const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
     if (t === tab) {
-      content.classList.remove('hidden');
-      btn.className = 'flex-1 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm flex items-center justify-center gap-1.5 transition-all font-semibold';
+      if (content) content.classList.remove('hidden');
+      if (btn) btn.className = 'flex-1 py-1.5 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm flex items-center justify-center gap-1 transition-all font-semibold';
     } else {
-      content.classList.add('hidden');
-      btn.className = 'flex-1 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1.5 transition-all font-semibold';
+      if (content) content.classList.add('hidden');
+      if (btn) btn.className = 'flex-1 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 flex items-center justify-center gap-1 transition-all font-semibold';
     }
   });
   if (window.lucide) window.lucide.createIcons();
 }
 
-// Image Selection & Drop Handling
+// Image Selection
 function handleImageSelected(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -103,13 +228,46 @@ function handleImageSelected(event) {
 
 function clearImage() {
   selectedImageBase64 = null;
-  document.getElementById("prescriptionImageInput").value = "";
+  const input = document.getElementById("prescriptionImageInput");
+  if (input) input.value = "";
   document.getElementById("imagePreview").src = "";
   document.getElementById("imagePreviewContainer").classList.add("hidden");
   document.getElementById("dropZone").classList.remove("hidden");
 }
 
-// Live Camera Scanner Viewfinder
+// Patient Profile Photo / Avatar
+function handlePatientPhotoSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    patientPhotoBase64 = e.target.result;
+    const preview = document.getElementById("patientPhotoPreview");
+    const placeholder = document.getElementById("patientPhotoPlaceholder");
+    if (preview) {
+      preview.src = patientPhotoBase64;
+      preview.classList.remove("hidden");
+    }
+    if (placeholder) placeholder.classList.add("hidden");
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPatientPhoto() {
+  patientPhotoBase64 = null;
+  const input = document.getElementById("patientPhotoInput");
+  if (input) input.value = "";
+  const preview = document.getElementById("patientPhotoPreview");
+  const placeholder = document.getElementById("patientPhotoPlaceholder");
+  if (preview) {
+    preview.src = "";
+    preview.classList.add("hidden");
+  }
+  if (placeholder) placeholder.classList.remove("hidden");
+}
+
+// Live Camera Scanner
 async function openLiveCameraModal() {
   const modal = document.getElementById("liveCameraModal");
   const video = document.getElementById("cameraVideo");
@@ -153,7 +311,7 @@ function captureCameraSnapshot() {
   closeLiveCameraModal();
 }
 
-// Voice Audio Recording
+// Voice Audio Dictation
 async function toggleAudioRecording() {
   const btn = document.getElementById("btnRecord");
   const btnText = document.getElementById("btnRecordText");
@@ -211,8 +369,71 @@ async function toggleAudioRecording() {
   }
 }
 
-// 1-Click Preset Scenario Loader
+// ==========================================
+// 4. DYNAMIC MEDICATION BUILDER
+// ==========================================
+function addMedicationRow(name = "", slot = "morning", freq = "Once daily") {
+  const container = document.getElementById("medicationRowsContainer");
+  if (!container) return;
+
+  const row = document.createElement("div");
+  row.className = "med-entry-row grid grid-cols-12 gap-1.5 items-center p-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs";
+  
+  row.innerHTML = `
+    <input type="text" value="${name}" placeholder="Drug (e.g. Lisinopril 10mg)" class="col-span-5 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-1 text-xs med-name-input">
+    <select class="col-span-3 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-1.5 py-1 text-[11px] med-slot-select">
+      <option value="morning" ${slot === 'morning' ? 'selected' : ''}>Morning</option>
+      <option value="afternoon" ${slot === 'afternoon' ? 'selected' : ''}>Afternoon</option>
+      <option value="evening" ${slot === 'evening' ? 'selected' : ''}>Evening</option>
+      <option value="night" ${slot === 'night' ? 'selected' : ''}>Night</option>
+    </select>
+    <input type="text" value="${freq}" placeholder="Freq (Once daily)" class="col-span-3 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-1.5 py-1 text-[11px] med-freq-input">
+    <button onclick="removeMedicationRow(this)" class="col-span-1 text-slate-400 hover:text-red-500 flex justify-center">
+      <i data-lucide="x" class="w-3.5 h-3.5"></i>
+    </button>
+  `;
+  container.appendChild(row);
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function removeMedicationRow(btn) {
+  const row = btn.closest(".med-entry-row");
+  if (row) row.remove();
+}
+
+function collectCustomMedications() {
+  const rows = document.querySelectorAll(".med-entry-row");
+  const meds = [];
+  rows.forEach(r => {
+    const name = r.querySelector(".med-name-input")?.value?.trim();
+    const slot = r.querySelector(".med-slot-select")?.value;
+    const freq = r.querySelector(".med-freq-input")?.value?.trim();
+    if (name) {
+      meds.push({
+        drug: name,
+        slot: slot || 'morning',
+        frequency: freq || 'Once daily'
+      });
+    }
+  });
+  return meds;
+}
+
+// ==========================================
+// 5. TEST SCENARIOS DROPDOWN
+// ==========================================
+function toggleDemoDropdown() {
+  const menu = document.getElementById("demoDropdownMenu");
+  if (menu) menu.classList.toggle("hidden");
+}
+
+function closeDemoDropdown() {
+  const menu = document.getElementById("demoDropdownMenu");
+  if (menu) menu.classList.add("hidden");
+}
+
 async function loadScenario(scenarioId) {
+  closeDemoDropdown();
   showLoading(true, "Loading Scenario...", "Extracting clinical entities, pill appearances, and FHIR payloads...");
   try {
     const res = await fetch(`/api/scenarios/${scenarioId}`);
@@ -222,13 +443,42 @@ async function loadScenario(scenarioId) {
     currentHl7Message = data.hl7_message;
 
     if (data.scenario.patient) {
-      document.getElementById("patientAllergiesInput").value = (data.scenario.patient.allergies || []).join(", ");
-      document.getElementById("patientHistoryInput").value = (data.scenario.patient.pre_existing_conditions || []).join(", ");
-      document.getElementById("customPatientName").value = data.scenario.patient.name || "";
-      document.getElementById("customPatientAge").value = data.scenario.patient.age || "";
+      const p = data.scenario.patient;
+      document.getElementById("patientAllergiesInput").value = (p.allergies || []).join(", ");
+      document.getElementById("patientHistoryInput").value = (p.pre_existing_conditions || []).join(", ");
+      document.getElementById("customPatientName").value = p.name || "";
+      document.getElementById("customPatientAge").value = p.age || "";
+      if (document.getElementById("customPatientGender")) {
+        document.getElementById("customPatientGender").value = p.gender || "Female";
+      }
+      if (document.getElementById("customBloodGroup")) {
+        document.getElementById("customBloodGroup").value = p.blood_group || "O+";
+      }
     }
+
+    if (data.scenario.vitals) {
+      const v = data.scenario.vitals;
+      if (document.getElementById("vitalBp")) document.getElementById("vitalBp").value = v.blood_pressure || "";
+      if (document.getElementById("vitalHr")) document.getElementById("vitalHr").value = v.heart_rate || "";
+      if (document.getElementById("vitalSpo2")) document.getElementById("vitalSpo2").value = v.oxygen_saturation || "";
+      if (document.getElementById("vitalTemp")) document.getElementById("vitalTemp").value = v.temperature || "";
+    }
+
     if (data.scenario.raw_text_preview) {
       document.getElementById("textNotesInput").value = data.scenario.raw_text_preview;
+    }
+
+    // Populate dynamic med builder rows
+    const container = document.getElementById("medicationRowsContainer");
+    if (container && data.scenario.medications) {
+      container.innerHTML = "";
+      data.scenario.medications.forEach(m => {
+        addMedicationRow(
+          `${m.brand_name || m.generic_name} ${m.dosage || ''}`.trim(),
+          m.timing_slot || 'morning',
+          m.frequency || 'Once daily'
+        );
+      });
     }
 
     renderResults(currentAnalysisData, currentFhirBundle, currentHl7Message);
@@ -239,39 +489,61 @@ async function loadScenario(scenarioId) {
   }
 }
 
-// Execute Analysis (Supports Real User Custom Form, Image, Audio, or Notes)
+// ==========================================
+// 6. EXECUTE MULTIMODAL ANALYSIS
+// ==========================================
 async function executeAnalysis() {
-  const notes = document.getElementById("textNotesInput").value;
-  const allergies = document.getElementById("patientAllergiesInput").value;
-  const history = document.getElementById("patientHistoryInput").value;
-  const lang = document.getElementById("targetLanguageSelect").value;
+  const notes = document.getElementById("textNotesInput")?.value || "";
+  const allergies = document.getElementById("patientAllergiesInput")?.value || "";
+  const history = document.getElementById("patientHistoryInput")?.value || "";
+  const lang = document.getElementById("targetLanguageSelect")?.value || "en";
 
   // Custom Form Builder data
-  const customName = document.getElementById("customPatientName")?.value;
-  const customAge = document.getElementById("customPatientAge")?.value;
-  const customMeds = document.getElementById("customMedsList")?.value;
-  const customSymptoms = document.getElementById("customSymptoms")?.value;
+  const customName = document.getElementById("customPatientName")?.value || "";
+  const customAge = document.getElementById("customPatientAge")?.value || "";
+  const customGender = document.getElementById("customPatientGender")?.value || "Female";
+  const customBlood = document.getElementById("customBloodGroup")?.value || "O+";
+  const customSymptoms = document.getElementById("customSymptoms")?.value || "";
+  const customMeds = collectCustomMedications();
+
+  // Vitals
+  const vitals = {
+    blood_pressure: document.getElementById("vitalBp")?.value || "120/80 mmHg",
+    heart_rate: document.getElementById("vitalHr")?.value || "74 bpm",
+    oxygen_saturation: document.getElementById("vitalSpo2")?.value || "98%",
+    temperature: document.getElementById("vitalTemp")?.value || "98.6°F"
+  };
 
   let combinedNotes = notes;
-  if (customMeds || customSymptoms || customName) {
-    combinedNotes = `Patient: ${customName || 'Patient'}, Age: ${customAge || 'Adult'}. Symptoms: ${customSymptoms || 'Reported'}. Prescribed Medications: ${customMeds || 'None'}. ${notes || ''}`;
+  if (customMeds.length > 0 || customSymptoms || customName) {
+    const medSummary = customMeds.map(m => `${m.drug} (${m.slot}, ${m.frequency})`).join("; ");
+    const patientHeader = `Patient: ${customName || 'Anonymous'}, Age: ${customAge || 'Adult'}, Gender: ${customGender}, Blood: ${customBlood}.`;
+    const symptomHeader = customSymptoms ? ` Chief Complaint: ${customSymptoms}.` : "";
+    const medsHeader = medSummary ? ` Prescribed Medications: ${medSummary}.` : "";
+    combinedNotes = `${patientHeader}${symptomHeader}${medsHeader} ${notes}`.trim();
   }
 
   if (!selectedImageBase64 && !recordedAudioBase64 && !combinedNotes && !allergies && !history) {
-    alert("Please provide at least one input: upload a prescription image, scan via camera, record voice, or fill in patient details.");
+    alert("Please provide at least one input: upload a prescription photo, scan via camera, record voice, or enter patient form details.");
     return;
   }
 
-  showLoading(true, "Gemini Multimodal Reasoning...", "Processing handwriting OCR, audio waveform, and drug contraindications...");
+  showLoading(true, "Gemini Multimodal Reasoning...", "Cross-referencing drug contraindications, handwriting OCR, vitals & generating clinical plan...");
 
   try {
     const payload = {
       image_data: selectedImageBase64,
+      patient_photo: patientPhotoBase64,
       audio_data: recordedAudioBase64,
       text_notes: combinedNotes,
       patient_history: history,
       patient_allergies: allergies,
-      target_language: lang
+      target_language: lang,
+      vitals: vitals,
+      location_lat: userLocation.lat,
+      location_lon: userLocation.lon,
+      country_code: userLocation.country_code,
+      city: userLocation.city
     };
 
     const res = await fetch("/api/analyze", {
@@ -285,10 +557,18 @@ async function executeAnalysis() {
     currentFhirBundle = data.fhir_bundle;
     currentHl7Message = data.hl7_message;
 
-    // If custom name was provided, ensure it reflects
+    // Synchronize custom user details if entered
     if (customName && currentAnalysisData.patient) {
       currentAnalysisData.patient.name = customName;
       if (customAge) currentAnalysisData.patient.age = parseInt(customAge);
+      if (customGender) currentAnalysisData.patient.gender = customGender;
+      if (customBlood) currentAnalysisData.patient.blood_group = customBlood;
+    }
+    if (patientPhotoBase64 && currentAnalysisData.patient) {
+      currentAnalysisData.patient.photo_base64 = patientPhotoBase64;
+    }
+    if (vitals && currentAnalysisData) {
+      currentAnalysisData.vitals = vitals;
     }
 
     renderResults(currentAnalysisData, currentFhirBundle, currentHl7Message);
@@ -299,77 +579,81 @@ async function executeAnalysis() {
   }
 }
 
-// Render Results to UI
+// ==========================================
+// 7. RENDER RESULTS DASHBOARD
+// ==========================================
 function renderResults(data, fhirBundle, hl7Message) {
   document.getElementById("welcomeState").classList.add("hidden");
   document.getElementById("resultsDashboard").classList.remove("hidden");
 
-  // 1. Triage Banner
+  const patient = data.patient || {};
   const triage = data.triage || {};
-  const banner = document.getElementById("triageBanner");
-  const iconBox = document.getElementById("triageIconBox");
-  const levelTag = document.getElementById("triageLevelTag");
-  const scoreTag = document.getElementById("triageScoreTag");
-  const title = document.getElementById("triageTitle");
-  const summary = document.getElementById("triageSummary");
-
-  title.innerText = triage.title || "Clinical Assessment";
-  summary.innerText = triage.summary || "";
-  scoreTag.innerText = `Triage Urgency: ${triage.score || 50}/100`;
-
-  banner.className = "p-5 rounded-2xl border transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-md dark:shadow-xl";
-  if (triage.level === "RED") {
-    banner.classList.add("bg-red-50", "dark:bg-red-950/40", "border-red-300", "dark:border-red-500/60");
-    iconBox.className = "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700/60 pulse-danger";
-    levelTag.className = "px-2.5 py-0.5 text-xs font-black rounded-full uppercase tracking-wide bg-red-600 text-white";
-    levelTag.innerText = "RED: CRITICAL EMERGENCY";
-  } else if (triage.level === "AMBER") {
-    banner.classList.add("bg-amber-50", "dark:bg-amber-950/40", "border-amber-300", "dark:border-amber-500/60");
-    iconBox.className = "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700/60";
-    levelTag.className = "px-2.5 py-0.5 text-xs font-black rounded-full uppercase tracking-wide bg-amber-600 text-white";
-    levelTag.innerText = "AMBER: URGENT ACTION";
-  } else {
-    banner.classList.add("bg-emerald-50", "dark:bg-emerald-950/40", "border-emerald-300", "dark:border-emerald-500/60");
-    iconBox.className = "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700/60";
-    levelTag.className = "px-2.5 py-0.5 text-xs font-black rounded-full uppercase tracking-wide bg-emerald-600 text-white";
-    levelTag.innerText = "GREEN: ROUTINE / STABLE";
-  }
-
-  // 2. Environmental Context Card
-  const env = data.environmental_context;
-  const envCard = document.getElementById("envRiskCard");
-  if (env) {
-    envCard.classList.remove("hidden");
-    document.getElementById("envAqi").innerText = `AQI ${env.aqi}`;
-    document.getElementById("envTemp").innerText = `${env.temperature_c}°C (${env.humidity_pct}%)`;
-    document.getElementById("envPollen").innerText = env.pollen_level;
-
-    const badge = document.getElementById("envRiskBadge");
-    badge.innerText = `${env.environmental_risk_level} ENVIRONMENTAL RISK`;
-    badge.className = `text-[10px] font-bold px-2 py-0.5 rounded-full ${env.environmental_risk_level === 'HIGH' ? 'bg-rose-100 dark:bg-rose-900 text-rose-700 dark:text-rose-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`;
-
-    const alertsContainer = document.getElementById("envAlertsContainer");
-    alertsContainer.innerHTML = "";
-    (env.contextual_alerts || []).forEach(al => {
-      const div = document.createElement("div");
-      div.className = "p-2 rounded-lg bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-[11px] text-amber-700 dark:text-amber-300 flex items-start gap-1.5";
-      div.innerHTML = `<i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5"></i> <span><strong>${al.trigger}:</strong> ${al.impact} (${al.action})</span>`;
-      alertsContainer.appendChild(div);
-    });
-  } else {
-    envCard.classList.add("hidden");
-  }
-
-  // 3. Safety Matrix & Interactions
   const safety = data.safety_analysis || {};
-  const safetyBadge = document.getElementById("safetyBadge");
-  safetyBadge.innerText = safety.badge || "Safety Checked";
-  if (safety.color === "red") {
-    safetyBadge.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700/60";
-  } else if (safety.color === "amber") {
-    safetyBadge.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60";
+  const meds = data.medications || [];
+  const guide = data.patient_friendly_guide || {};
+  const vitals = data.vitals || {};
+
+  // 1. Patient Profile Header
+  document.getElementById("patientDisplayName").innerText = patient.name || "Patient Record";
+  document.getElementById("patientBloodBadge").innerText = patient.blood_group || "O+";
+  document.getElementById("patientDemographics").innerText = `${patient.age ? patient.age + 'yo' : 'Adult'} • ${patient.gender || 'Patient'} • Allergies: ${(patient.allergies || []).join(', ') || 'None Documented'}`;
+
+  // Patient Avatar / Photo
+  const profileImg = document.getElementById("patientProfileImage");
+  const defaultIcon = document.getElementById("patientDefaultIcon");
+  if (patientPhotoBase64 || patient.photo_base64) {
+    profileImg.src = patientPhotoBase64 || patient.photo_base64;
+    profileImg.classList.remove("hidden");
+    defaultIcon.classList.add("hidden");
   } else {
-    safetyBadge.className = "text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60";
+    profileImg.src = "";
+    profileImg.classList.add("hidden");
+    defaultIcon.classList.remove("hidden");
+  }
+
+  // Vitals Display Bar
+  if (document.getElementById("dispBp")) document.getElementById("dispBp").innerText = vitals.blood_pressure || "120/80 mmHg";
+  if (document.getElementById("dispHr")) document.getElementById("dispHr").innerText = vitals.heart_rate || "74 bpm";
+  if (document.getElementById("dispSpo2")) document.getElementById("dispSpo2").innerText = vitals.oxygen_saturation || "98%";
+  if (document.getElementById("dispTemp")) document.getElementById("dispTemp").innerText = vitals.temperature || "98.6°F";
+
+  // 2. Triage Banner & Protocol
+  const triageCard = document.getElementById("triageProtocolCard");
+  const triageIconBox = document.getElementById("triageIconBox");
+  const triageBadgeBox = document.getElementById("triageBadgeBox");
+  const triageLevelText = document.getElementById("triageLevelText");
+  const triageTitle = document.getElementById("triageTitle");
+  const triageSummary = document.getElementById("triageSummary");
+
+  triageTitle.innerText = triage.title || "Clinical Assessment";
+  triageSummary.innerText = triage.summary || "";
+
+  if (triage.level === "RED") {
+    triageBadgeBox.className = "px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm bg-red-600 text-white animate-pulse";
+    triageLevelText.innerText = "RED: CRITICAL EMERGENCY";
+    triageCard.className = "p-5 rounded-2xl border transition-all shadow-md bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-500/60";
+    triageIconBox.className = "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700/60";
+  } else if (triage.level === "AMBER") {
+    triageBadgeBox.className = "px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm bg-amber-600 text-white";
+    triageLevelText.innerText = "AMBER: URGENT ACTION";
+    triageCard.className = "p-5 rounded-2xl border transition-all shadow-md bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-500/60";
+    triageIconBox.className = "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-700/60";
+  } else {
+    triageBadgeBox.className = "px-3 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 shadow-sm bg-emerald-600 text-white";
+    triageLevelText.innerText = "GREEN: ROUTINE / STABLE";
+    triageCard.className = "p-5 rounded-2xl border transition-all shadow-md bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-500/60";
+    triageIconBox.className = "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700/60";
+  }
+
+  // 3. Pharmacological Safety Matrix
+  const safetyBadge = document.getElementById("safetyBadge");
+  safetyBadge.innerText = safety.badge || (safety.status === "CRITICAL_HAZARD" ? "LETHAL INTERACTION DETECTED" : "Prescription Verified");
+  if (safety.color === "red" || safety.status === "CRITICAL_HAZARD") {
+    safetyBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-red-100 dark:bg-red-900/60 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700/60";
+  } else if (safety.color === "amber") {
+    safetyBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60";
+  } else {
+    safetyBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60";
   }
 
   const interactionList = document.getElementById("interactionList");
@@ -383,8 +667,8 @@ function renderResults(data, fhirBundle, hl7Message) {
   if (allAlerts.length === 0) {
     interactionList.innerHTML = `
       <div class="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
-        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i>
-        <span>No lethal drug-drug interactions or cross-allergies detected. Prescriptions cleared for administration.</span>
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500 flex-shrink-0"></i>
+        <span>No lethal drug-drug interactions or allergy contraindications detected. Prescriptions cleared for administration.</span>
       </div>
     `;
   } else {
@@ -396,13 +680,13 @@ function renderResults(data, fhirBundle, hl7Message) {
         <div class="flex items-center justify-between font-bold text-xs mb-1">
           <span class="flex items-center gap-1.5">
             <i data-lucide="${isCrit ? 'alert-triangle' : 'alert-circle'}" class="w-4 h-4 ${isCrit ? 'text-red-500' : 'text-amber-500'}"></i>
-            ${alertItem.title || 'Drug Hazard Alert'}
+            ${alertItem.title || alertItem.drug || 'Drug Hazard Alert'}
           </span>
           <span class="text-[10px] px-2 py-0.5 rounded uppercase font-bold ${isCrit ? 'bg-red-200 dark:bg-red-900/80 text-red-800 dark:text-red-200' : 'bg-amber-200 dark:bg-amber-900/80 text-amber-800 dark:text-amber-200'}">${alertItem.severity}</span>
         </div>
-        <p class="text-[11px] opacity-90 leading-relaxed mb-2">${alertItem.mechanism || ''}</p>
+        <p class="text-[11px] opacity-90 leading-relaxed mb-2">${alertItem.mechanism || alertItem.reaction || ''}</p>
         <div class="p-2 rounded-lg bg-white/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-[11px]">
-          <strong class="${isCrit ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}">Life-Saving Action:</strong> ${alertItem.recommendation || ''}
+          <strong class="${isCrit ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}">Life-Saving Action:</strong> ${alertItem.recommendation || alertItem.clinical_guidance || ''}
         </div>
       `;
       interactionList.appendChild(card);
@@ -410,10 +694,6 @@ function renderResults(data, fhirBundle, hl7Message) {
   }
 
   // 4. Medications Table
-  const meds = data.medications || [];
-  const patient = data.patient || {};
-  document.getElementById("patientMeta").innerText = `Patient: ${patient.name || 'Anonymous'} (${patient.age || 'N/A'}yo ${patient.gender || ''})`;
-
   const tbody = document.getElementById("medicationsTableBody");
   tbody.innerHTML = "";
   meds.forEach(med => {
@@ -430,18 +710,18 @@ function renderResults(data, fhirBundle, hl7Message) {
           ${med.is_high_risk ? '<span class="px-1.5 py-0.2 text-[9px] bg-red-100 dark:bg-red-900/80 text-red-700 dark:text-red-300 rounded font-mono">HIGH RISK</span>' : ''}
         </div>
         <div class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">${med.generic_name || ''}</div>
-        <span class="inline-block mt-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-200 dark:border-emerald-800/60">
+        <span class="inline-block mt-1 text-[10px] font-semibold text-teal-700 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/80 px-1.5 py-0.2 rounded border border-teal-200 dark:border-teal-800/60">
           Generic Saves ~${genericAlt.avg_savings_percent}%
         </span>
       </td>
       <td class="py-2.5 px-3">
         <div class="text-xs text-slate-800 dark:text-slate-200 font-medium">${pillVis.shape}</div>
-        <div class="text-[10px] text-cyan-600 dark:text-cyan-300 font-medium">${pillVis.color}</div>
+        <div class="text-[10px] text-teal-600 dark:text-teal-300 font-medium">${pillVis.color}</div>
         <div class="text-[9px] text-slate-400 font-mono">Imprint: ${pillVis.imprint}</div>
       </td>
-      <td class="py-2.5 px-3 font-mono text-[11px] text-cyan-700 dark:text-cyan-300">
+      <td class="py-2.5 px-3 font-mono text-[11px] text-teal-700 dark:text-teal-300">
         <div>${med.dosage || 'N/A'} (${med.route || 'Oral'})</div>
-        <div class="text-[11px] text-slate-600 dark:text-slate-300 font-sans">${med.frequency || ''}</div>
+        <div class="text-[11px] text-slate-600 dark:text-slate-300 font-sans capitalize">${med.timing_slot || ''} • ${med.frequency || ''}</div>
       </td>
       <td class="py-2.5 px-3 text-[11px] text-slate-700 dark:text-slate-300">
         <div class="font-medium text-slate-900 dark:text-slate-200">${med.purpose || ''}</div>
@@ -451,33 +731,35 @@ function renderResults(data, fhirBundle, hl7Message) {
     tbody.appendChild(tr);
   });
 
-  // 5. Chrono-Dosing Timeline
-  const guide = data.patient_friendly_guide || {};
+  // 5. 24-Hour Chrono-Dosing Timeline
   const sched = guide.schedule_breakdown || {};
-  document.getElementById("scheduleMorning").innerText = sched.morning || "No scheduled pills";
-  document.getElementById("scheduleAfternoon").innerText = sched.afternoon || "No scheduled pills";
-  document.getElementById("scheduleEvening").innerText = sched.evening || "No scheduled pills";
-  document.getElementById("scheduleNight").innerText = sched.night || "No scheduled pills";
+  document.getElementById("scheduleMorning").innerText = sched.morning || "No scheduled medication.";
+  document.getElementById("scheduleAfternoon").innerText = sched.afternoon || "No scheduled medication.";
+  document.getElementById("scheduleEvening").innerText = sched.evening || "No scheduled medication.";
+  document.getElementById("scheduleNight").innerText = sched.night || "No scheduled medication.";
 
-  // 6. Patient Friendly Guide & Red Flags
+  // 6. Nearby Facilities
+  renderNearbyFacilities(data.nearby_emergency_resources);
+
+  // 7. Patient Friendly Guide & Red Flags
   document.getElementById("plainSummaryText").innerText = guide.plain_summary || "Prescription instructions verified.";
   const redFlagsUl = document.getElementById("redFlagList");
   redFlagsUl.innerHTML = "";
   (guide.red_flag_symptoms || []).forEach(rf => {
     const li = document.createElement("li");
     li.className = "flex items-start gap-1.5 text-slate-700 dark:text-slate-300";
-    li.innerHTML = `<span class="text-red-500">•</span> <span>${rf}</span>`;
+    li.innerHTML = `<span class="text-red-500 font-bold">•</span> <span>${rf}</span>`;
     redFlagsUl.appendChild(li);
   });
 
-  // 7. SOAP Notes
+  // 8. SOAP Notes
   const soap = (triage.soap_note || {});
   document.getElementById("soapSubjective").innerText = soap.subjective || "N/A";
   document.getElementById("soapObjective").innerText = soap.objective || "N/A";
   document.getElementById("soapAssessment").innerText = soap.assessment || "N/A";
   document.getElementById("soapPlan").innerText = soap.plan || "N/A";
 
-  // 8. FHIR & HL7 Blocks
+  // 9. FHIR & HL7 Blocks
   if (fhirBundle) {
     document.getElementById("fhirJsonBlock").innerText = JSON.stringify(fhirBundle, null, 2);
   }
@@ -485,31 +767,264 @@ function renderResults(data, fhirBundle, hl7Message) {
     document.getElementById("hl7Block").innerText = hl7Message;
   }
 
-  // Generate Pure QR Code
-  generateHealthCardQr(patient, meds);
+  // Generate Emergency QR Code Pass
+  generateHealthCardQr(patient, meds, triage, currentQrFormat);
 
   if (window.lucide) window.lucide.createIcons();
 }
 
-// Language Selector Change Trigger
+function renderNearbyFacilities(resources) {
+  const locLabel = document.getElementById("facilitiesLocationLabel");
+  const hospList = document.getElementById("hospitalsList");
+  const pharmList = document.getElementById("pharmaciesList");
+
+  if (!hospList || !pharmList) return;
+
+  const res = resources || {
+    hospitals: [
+      { name: "Metropolitan Trauma Center", address: "City Center ER", distance_km: 1.2, phone: "112 / 911" }
+    ],
+    pharmacies: [
+      { name: "24/7 MedCare Pharmacy", address: "Main Healthcare Ave", distance_km: 0.6, phone: "+1 (555) 247-0000" }
+    ],
+    location_tag: userLocation.city ? `${userLocation.city}, ${userLocation.country_code}` : "Local Region"
+  };
+
+  if (locLabel) locLabel.innerText = res.location_tag || "Emergency Directory";
+
+  hospList.innerHTML = `<div class="font-bold text-[11px] text-teal-700 dark:text-teal-400 mb-1 flex items-center gap-1"><i data-lucide="hospital" class="w-3.5 h-3.5"></i> Trauma Centers</div>`;
+  (res.hospitals || []).forEach(h => {
+    const div = document.createElement("div");
+    div.className = "p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between";
+    div.innerHTML = `
+      <div>
+        <div class="font-bold text-slate-900 dark:text-slate-100">${h.name}</div>
+        <div class="text-[10px] text-slate-500 dark:text-slate-400">${h.address || ''} • ${h.distance_km || 1} km away</div>
+      </div>
+      <a href="tel:${h.phone || '112'}" class="px-2 py-1 rounded-lg bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300 font-mono font-bold text-[11px] hover:bg-red-200">
+        ${h.phone || 'Call'}
+      </a>
+    `;
+    hospList.appendChild(div);
+  });
+
+  pharmList.innerHTML = `<div class="font-bold text-[11px] text-blue-700 dark:text-blue-400 mb-1 flex items-center gap-1"><i data-lucide="cross" class="w-3.5 h-3.5"></i> 24/7 Pharmacies</div>`;
+  (res.pharmacies || []).forEach(p => {
+    const div = document.createElement("div");
+    div.className = "p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between";
+    div.innerHTML = `
+      <div>
+        <div class="font-bold text-slate-900 dark:text-slate-100">${p.name}</div>
+        <div class="text-[10px] text-slate-500 dark:text-slate-400">${p.address || ''} • ${p.distance_km || 0.5} km away</div>
+      </div>
+      <a href="tel:${p.phone || '112'}" class="px-2 py-1 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-mono font-bold text-[11px] hover:bg-blue-200">
+        ${p.phone || 'Call'}
+      </a>
+    `;
+    pharmList.appendChild(div);
+  });
+}
+
+// ==========================================
+// 8. EMERGENCY MEDICAL QR PASS GENERATOR
+// ==========================================
+function switchQrFormat(format) {
+  currentQrFormat = format;
+  const textBtn = document.getElementById("qrFmtTextBtn");
+  const jsonBtn = document.getElementById("qrFmtJsonBtn");
+
+  if (format === 'text') {
+    textBtn.className = "px-2.5 py-1 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm";
+    jsonBtn.className = "px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400";
+  } else {
+    jsonBtn.className = "px-2.5 py-1 rounded-md bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm";
+    textBtn.className = "px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400";
+  }
+
+  if (currentAnalysisData) {
+    generateHealthCardQr(
+      currentAnalysisData.patient || {},
+      currentAnalysisData.medications || [],
+      currentAnalysisData.triage || {},
+      currentQrFormat
+    );
+  }
+}
+
+function generateHealthCardQr(patient, meds, triage = {}, format = 'text') {
+  const qrDiv = document.getElementById("qrcode");
+  if (!qrDiv) return;
+  qrDiv.innerHTML = "";
+
+  let qrContent = "";
+
+  if (format === 'text') {
+    // Pure clean human-readable text pass for any smartphone camera
+    const medLines = (meds || []).map(m => `• ${m.brand_name || m.generic_name} ${m.dosage || ''} (${m.timing_slot || 'daily'}, ${m.frequency || ''})`).join("\n");
+    const allergyStr = (patient.allergies || []).join(", ") || "None Documented";
+    const conditionStr = (patient.pre_existing_conditions || []).join(", ") || "None Documented";
+
+    qrContent = [
+      "🏥 MEDFOREVER EMERGENCY MEDICAL PASS",
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+      `👤 PATIENT: ${patient.name || 'Anonymous'} (${patient.age || 'N/A'}yo ${patient.gender || ''})`,
+      `🩸 BLOOD GROUP: ${patient.blood_group || 'O+'}`,
+      `⚠️ ALLERGIES: ${allergyStr}`,
+      `🩺 CONDITIONS: ${conditionStr}`,
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+      "💊 ACTIVE MEDICATIONS:",
+      medLines || "• None active",
+      "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+      `🚨 TRIAGE STATUS: ${triage.level || 'GREEN'} - ${triage.title || 'Stable'}`,
+      `📞 EMERGENCY DISPATCH: 112 / 911`
+    ].join("\n");
+  } else {
+    // Interoperable FHIR / JSON Payload
+    const jsonPayload = {
+      medforever_pass: "VERIFIED",
+      patient: {
+        name: patient.name || "Anonymous",
+        age: patient.age,
+        gender: patient.gender,
+        blood_group: patient.blood_group || "O+",
+        allergies: patient.allergies || [],
+        conditions: patient.pre_existing_conditions || []
+      },
+      triage_level: triage.level || "GREEN",
+      active_medications: (meds || []).map(m => ({
+        drug: m.brand_name || m.generic_name,
+        dosage: m.dosage,
+        slot: m.timing_slot,
+        frequency: m.frequency
+      }))
+    };
+    qrContent = JSON.stringify(jsonPayload);
+  }
+
+  try {
+    new QRCode(qrDiv, {
+      text: qrContent,
+      width: 220,
+      height: 220,
+      colorDark: "#090d16",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } catch (e) {
+    console.error("QR Code Error:", e);
+  }
+}
+
+function openHealthCardModal() {
+  document.getElementById("healthCardModal").classList.remove("hidden");
+  if (currentAnalysisData) {
+    generateHealthCardQr(
+      currentAnalysisData.patient || {},
+      currentAnalysisData.medications || [],
+      currentAnalysisData.triage || {},
+      currentQrFormat
+    );
+  }
+}
+
+function closeHealthCardModal() {
+  document.getElementById("healthCardModal").classList.add("hidden");
+}
+
+// ==========================================
+// 9. DIRECT PDF DOWNLOAD & DIRECT PRINT
+// ==========================================
+async function downloadClinicalReportDirectPdf() {
+  if (!currentAnalysisData) {
+    alert("Please analyze patient data or load a scenario first.");
+    return;
+  }
+  
+  showLoading(true, "Generating Clinical PDF...", "Formulating high-resolution discharge report...");
+
+  try {
+    const res = await fetch("/api/report/html", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ analysis_data: currentAnalysisData })
+    });
+    
+    if (!res.ok) {
+      throw new Error(`Server returned error ${res.status}`);
+    }
+    
+    const html = await res.text();
+    
+    const container = document.getElementById("pdfRenderContainer");
+    container.innerHTML = html;
+    
+    const patientName = (currentAnalysisData.patient?.name || 'Patient').replace(/[^a-zA-Z0-9]/g, '_');
+    
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: `MedForever_Clinical_Report_${patientName}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    if (window.html2pdf) {
+      await window.html2pdf().set(opt).from(container).save();
+      container.innerHTML = "";
+    } else {
+      const win = window.open("", "_blank");
+      win.document.write(html);
+      win.document.close();
+      win.print();
+    }
+  } catch (e) {
+    alert("Failed to generate PDF download: " + e.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
+async function printClinicalReportDirect() {
+  if (!currentAnalysisData) {
+    alert("Please analyze patient data or load a scenario first.");
+    return;
+  }
+  try {
+    const res = await fetch("/api/report/html", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ analysis_data: currentAnalysisData })
+    });
+    const html = await res.text();
+    
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  } catch (e) {
+    alert("Print failed: " + e.message);
+  }
+}
+
+// ==========================================
+// 10. MULTILINGUAL EXPLAINER & SPEECH
+// ==========================================
 function onLanguageChanged() {
   if (currentAnalysisData) {
     executeAnalysis();
   }
 }
 
-// Adherence Tracker
-function updateAdherence() {
-  const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-  let checkedCount = 0;
-  checkboxes.forEach(cb => { if (cb.checked) checkedCount++; });
-  const pct = Math.round((checkedCount / Math.max(1, checkboxes.length)) * 100);
-  document.getElementById("adherenceRateTag").innerText = `Adherence: ${pct}% Logged`;
-}
-
-// Multilingual Text-to-Speech Explainer
 function speakPatientSummary() {
-  const text = document.getElementById("plainSummaryText").innerText;
+  const text = document.getElementById("plainSummaryText")?.innerText;
   if (!text) return;
 
   const langCode = document.getElementById("targetLanguageSelect")?.value || "en";
@@ -527,7 +1042,9 @@ function speakPatientSummary() {
   }
 }
 
-// Emergency SOS Modal
+// ==========================================
+// 11. EMERGENCY SOS MODAL
+// ==========================================
 function triggerEmergencySOS() {
   if (!currentAnalysisData) return;
   const p = currentAnalysisData.patient || {};
@@ -546,49 +1063,9 @@ function closeEmergencySOS() {
   document.getElementById("emergencySosModal").classList.add("hidden");
 }
 
-// Pure QR Code Generator (Encodes complete patient info for smartphone scanning)
-function generateHealthCardQr(patient, meds) {
-  const qrDiv = document.getElementById("qrcode");
-  qrDiv.innerHTML = "";
-
-  const payload = {
-    medforever_health_pass: "VERIFIED",
-    patient_name: patient.name || "Anonymous",
-    age: patient.age,
-    allergies: patient.allergies || [],
-    conditions: patient.pre_existing_conditions || [],
-    active_prescriptions: (meds || []).map(m => ({
-      drug: m.brand_name || m.generic_name,
-      dose: m.dosage,
-      freq: m.frequency,
-      slot: m.timing_slot
-    })),
-    emergency_contact: "+1 (555) 911-0000"
-  };
-
-  try {
-    new QRCode(qrDiv, {
-      text: JSON.stringify(payload, null, 2),
-      width: 220,
-      height: 220,
-      colorDark: "#090d16",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel.M
-    });
-  } catch (e) {
-    console.error("QR Code Error:", e);
-  }
-}
-
-function openHealthCardModal() {
-  document.getElementById("healthCardModal").classList.remove("hidden");
-}
-
-function closeHealthCardModal() {
-  document.getElementById("healthCardModal").classList.add("hidden");
-}
-
-// Interoperability Views (FHIR / HL7)
+// ==========================================
+// 12. INTEROPERABILITY VIEWS (FHIR / HL7)
+// ==========================================
 function toggleInteropView() {
   const cont = document.getElementById("interopViewerContainer");
   const btn = document.getElementById("interopToggleBtnText");
@@ -611,7 +1088,7 @@ function switchInteropTab(tab) {
   if (tab === 'fhir') {
     fhirBlock.classList.remove("hidden");
     hl7Block.classList.add("hidden");
-    btnFhir.className = "px-3 py-1 rounded bg-slate-200 dark:bg-slate-800 text-cyan-700 dark:text-cyan-400 font-bold";
+    btnFhir.className = "px-3 py-1 rounded bg-slate-200 dark:bg-slate-800 text-teal-700 dark:text-teal-300 font-bold";
     btnHl7.className = "px-3 py-1 rounded bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-400";
   } else {
     fhirBlock.classList.add("hidden");
@@ -633,46 +1110,9 @@ function copyCurrentInteropCode() {
   });
 }
 
-// Direct PDF File Downloader
-async function downloadClinicalReportDirectPdf() {
-  if (!currentAnalysisData) {
-    alert("Please analyze or load a scenario first.");
-    return;
-  }
-  try {
-    const res = await fetch("/api/report/html", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysis_data: currentAnalysisData })
-    });
-    const html = await res.text();
-    
-    const container = document.getElementById("pdfRenderContainer");
-    container.innerHTML = html;
-    
-    const opt = {
-      margin: 10,
-      filename: `MedForever_Discharge_${(currentAnalysisData.patient?.name || 'Patient').replace(/\s+/g, '_')}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    
-    if (window.html2pdf) {
-      window.html2pdf().set(opt).from(container).save().then(() => {
-        container.innerHTML = "";
-      });
-    } else {
-      const win = window.open("", "_blank");
-      win.document.write(html);
-      win.document.close();
-    }
-  } catch (e) {
-    alert("Failed to generate PDF download: " + e.message);
-  }
-}
-
-// Loading Spinner helper
+// ==========================================
+// 13. SPINNER HELPER & API KEY MODAL
+// ==========================================
 function showLoading(show, title = "Processing...", subtitle = "Please wait...") {
   const loader = document.getElementById("loadingState");
   const btn = document.getElementById("btnAnalyze");
@@ -689,7 +1129,6 @@ function showLoading(show, title = "Processing...", subtitle = "Please wait...")
   }
 }
 
-// API Key Modal
 function openApiKeyModal() {
   document.getElementById("apiKeyModal").classList.remove("hidden");
 }
@@ -726,7 +1165,7 @@ async function checkApiKeyStatus() {
     if (data.configured) {
       btnText.innerText = data.masked_key || "Key Active";
     } else {
-      btnText.innerText = "Set Key";
+      btnText.innerText = "API Key";
     }
   } catch (e) {}
 }

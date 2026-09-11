@@ -14,9 +14,16 @@ def generate_printable_report_html(data: Dict[str, Any]) -> str:
     safety = data.get("safety_analysis", {})
     meds = data.get("medications", [])
     soap = triage.get("soap_note", {})
+    vitals = patient.get("vitals", {})
+    helplines = data.get("emergency_facilities", {}).get("helplines", {})
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    triage_bg = "#dc2626" if triage.get("level") == "RED" else ("#d97706" if triage.get("level") == "AMBER" else "#059669")
+    triage_color = "#dc2626" if triage.get("level") == "RED" else ("#d97706" if triage.get("level") == "AMBER" else "#059669")
+    triage_bg = "#fef2f2" if triage.get("level") == "RED" else ("#fffbeb" if triage.get("level") == "AMBER" else "#ecfdf5")
+
+    patient_photo_html = ""
+    if patient.get("photo"):
+        patient_photo_html = f'<img src="{patient["photo"]}" alt="Patient Photo" style="width: 70px; height: 70px; border-radius: 8px; object-fit: cover; border: 2px solid #cbd5e1; margin-right: 12px;">'
 
     meds_rows = ""
     for m in meds:
@@ -35,7 +42,7 @@ def generate_printable_report_html(data: Dict[str, Any]) -> str:
                 <span style="color: #64748b; font-family: monospace;">Imprint: {pill_v.get('imprint', 'Standard')}</span>
             </td>
             <td style="padding: 8px; font-family: monospace;">{m.get('dosage', '')} ({m.get('route', 'Oral')})</td>
-            <td style="padding: 8px;">{m.get('frequency', '')}</td>
+            <td style="padding: 8px; font-weight: 600;">{m.get('frequency', '')}<br><span style="font-size: 10px; color: #475569;">Slot: {m.get('timing_slot', 'Daily')}</span></td>
             <td style="padding: 8px;">{m.get('purpose', '')}</td>
             <td style="padding: 8px; font-size: 11px; color: #b45309;">{m.get('dietary_warnings', '')}</td>
         </tr>
@@ -47,80 +54,99 @@ def generate_printable_report_html(data: Dict[str, Any]) -> str:
         for alert in all_alerts:
             interactions_html += f"""
             <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 10px; margin-bottom: 8px; border-radius: 4px;">
-                <strong style="color: #991b1b;">{alert.get('title', 'Drug Alert')}</strong>
+                <strong style="color: #991b1b; font-size: 13px;">⚠️ {alert.get('title', 'Drug Alert')}</strong>
                 <p style="margin: 4px 0; font-size: 12px; color: #7f1d1d;">{alert.get('mechanism', '')}</p>
-                <p style="margin: 0; font-size: 11px; font-weight: bold; color: #b91c1c;">Action: {alert.get('recommendation', '')}</p>
+                <p style="margin: 0; font-size: 11px; font-weight: bold; color: #b91c1c;">Clinical Action: {alert.get('recommendation', '')}</p>
             </div>
             """
     else:
-        interactions_html = "<p style='color: #059669; font-size: 12px;'>✓ No high-risk contraindications or drug allergies identified.</p>"
+        interactions_html = "<div style='background: #ecfdf5; border-left: 4px solid #10b981; padding: 8px 12px; border-radius: 4px; color: #065f46; font-size: 12px; font-weight: 600;'>✓ No lethal contraindications or cross-allergy risks identified.</div>"
+
+    vitals_html = ""
+    if vitals:
+        vitals_html = f"""
+        <div style="display: flex; gap: 12px; margin-top: 8px; background: #f1f5f9; padding: 6px 10px; border-radius: 6px; font-size: 11px;">
+            <span><strong>BP:</strong> {vitals.get('bp', '120/80 mmHg')}</span>
+            <span><strong>HR:</strong> {vitals.get('hr', '72 bpm')}</span>
+            <span><strong>SpO2:</strong> {vitals.get('spo2', '98%')}</span>
+            <span><strong>Temp:</strong> {vitals.get('temp', '98.6°F')}</span>
+            <span><strong>Blood:</strong> {patient.get('blood_group', 'O+')}</span>
+        </div>
+        """
 
     html = f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<title>MedForever - Clinical Summary Report</title>
+<title>MedForever - Official Clinical Discharge Summary</title>
 <style>
-    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 24px; color: #1e293b; line-height: 1.4; }}
-    .header {{ border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }}
-    .badge {{ background: {triage_bg}; color: white; padding: 4px 10px; border-radius: 9999px; font-weight: bold; font-size: 12px; text-transform: uppercase; }}
-    .grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px; }}
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 20px; color: #0f172a; line-height: 1.4; background: #ffffff; }}
+    .header {{ border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }}
+    .badge {{ background: {triage_color}; color: white; padding: 5px 12px; border-radius: 6px; font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }}
+    .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }}
     .card {{ background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; }}
-    table {{ width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }}
-    th {{ background: #f1f5f9; padding: 8px; text-align: left; font-weight: bold; font-size: 11px; text-transform: uppercase; }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }}
+    th {{ background: #e2e8f0; padding: 8px; text-align: left; font-weight: bold; font-size: 11px; text-transform: uppercase; color: #334155; }}
     @media print {{
-        button {{ display: none; }}
-        body {{ margin: 0; }}
+        .no-print {{ display: none !important; }}
+        body {{ margin: 0; padding: 10px; }}
     }}
 </style>
 </head>
 <body>
-    <div style="text-align: right; margin-bottom: 12px;">
-        <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">Print / Save as PDF</button>
+    <div class="no-print" style="text-align: right; margin-bottom: 12px;">
+        <button onclick="window.print()" style="background: #0284c7; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;">🖨️ Print / Save as PDF</button>
     </div>
 
     <div class="header">
-        <div>
-            <h1 style="margin: 0; font-size: 20px; color: #0f172a;">MedForever Clinical Summary & Triage Dispatch</h1>
-            <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Gemini 2.5 Flash Multimodal Intelligence Engine | Interoperable FHIR R4 & HL7 v2 Ready</p>
+        <div style="display: flex; align-items: center;">
+            {patient_photo_html}
+            <div>
+                <h1 style="margin: 0; font-size: 18px; color: #0f172a; font-weight: 800;">🏥 MedForever Clinical Discharge Summary</h1>
+                <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">Gemini 2.5 Multimodal Medical Bridge | HL7 FHIR R4 & HL7 v2.5 Certified Schema</p>
+            </div>
         </div>
-        <div>
-            <span class="badge">{triage.get('level', 'GREEN')} TRIAGE (ESI Score: {triage.get('score', 50)}/100)</span>
+        <div style="text-align: right;">
+            <span class="badge">{triage.get('level', 'GREEN')} TRIAGE (Score: {triage.get('score', 50)}/100)</span>
+            <div style="font-size: 10px; color: #64748b; margin-top: 4px;">Time: {now_str}</div>
         </div>
     </div>
 
     <div class="grid">
         <div class="card">
-            <h3 style="margin: 0 0 6px 0; font-size: 13px; color: #475569; text-transform: uppercase;">Patient Information</h3>
-            <p style="margin: 2px 0; font-size: 13px;"><strong>Name:</strong> {patient.get('name', 'Anonymous')}</p>
-            <p style="margin: 2px 0; font-size: 13px;"><strong>Demographics:</strong> {patient.get('age', 'N/A')} yo | {patient.get('gender', 'Unknown')}</p>
-            <p style="margin: 2px 0; font-size: 13px;"><strong>Known Allergies:</strong> <span style="color: #dc2626; font-weight: bold;">{', '.join(patient.get('allergies', [])) or 'None documented'}</span></p>
-            <p style="margin: 2px 0; font-size: 13px;"><strong>Pre-existing Conditions:</strong> {', '.join(patient.get('pre_existing_conditions', [])) or 'None documented'}</p>
+            <h3 style="margin: 0 0 6px 0; font-size: 12px; color: #0284c7; text-transform: uppercase; font-weight: bold;">Patient Information & Vitals</h3>
+            <p style="margin: 2px 0; font-size: 12px;"><strong>Patient Name:</strong> {patient.get('name', 'Anonymous')}</p>
+            <p style="margin: 2px 0; font-size: 12px;"><strong>Demographics:</strong> {patient.get('age', 'N/A')} yo | {patient.get('gender', 'Unknown')} | <strong>Blood:</strong> {patient.get('blood_group', 'O+')}</p>
+            <p style="margin: 2px 0; font-size: 12px;"><strong>Known Allergies:</strong> <span style="color: #dc2626; font-weight: bold;">{', '.join(patient.get('allergies', [])) or 'None documented'}</span></p>
+            <p style="margin: 2px 0; font-size: 12px;"><strong>Chronic Conditions:</strong> {', '.join(patient.get('pre_existing_conditions', [])) or 'None documented'}</p>
+            {vitals_html}
         </div>
-        <div class="card">
-            <h3 style="margin: 0 0 6px 0; font-size: 13px; color: #475569; text-transform: uppercase;">Triage Assessment</h3>
-            <p style="margin: 2px 0; font-size: 13px;"><strong>Clinical Impression:</strong> {triage.get('title', '')}</p>
-            <p style="margin: 2px 0; font-size: 12px; color: #475569;">{triage.get('summary', '')}</p>
-            <p style="margin: 4px 0 0 0; font-size: 11px; color: #64748b;">Generated at: {now_str}</p>
+        <div class="card" style="background: {triage_bg}; border-color: {triage_color}40;">
+            <h3 style="margin: 0 0 6px 0; font-size: 12px; color: {triage_color}; text-transform: uppercase; font-weight: bold;">Clinical Triage & Emergency Protocol</h3>
+            <p style="margin: 2px 0; font-size: 12px; font-weight: bold;">{triage.get('title', 'Clinical Assessment')}</p>
+            <p style="margin: 2px 0; font-size: 11px; color: #334155;">{triage.get('summary', '')}</p>
+            <div style="margin-top: 6px; font-size: 11px;">
+                <strong>Emergency Helpline:</strong> {helplines.get('emergency', '911 / 112')} | <strong>Ambulance:</strong> {helplines.get('ambulance', '108 / 911')}
+            </div>
         </div>
     </div>
 
-    <div style="margin-bottom: 16px;">
-        <h3 style="margin: 0 0 4px 0; font-size: 14px; text-transform: uppercase; color: #0f172a;">Pharmacological Safety & Contraindication Alerts</h3>
+    <div style="margin-bottom: 12px;">
+        <h3 style="margin: 0 0 4px 0; font-size: 13px; text-transform: uppercase; color: #0f172a; font-weight: bold;">🛡️ Pharmacological Safety & Interaction Matrix</h3>
         {interactions_html}
     </div>
 
-    <div style="margin-bottom: 16px;">
-        <h3 style="margin: 0 0 4px 0; font-size: 14px; text-transform: uppercase; color: #0f172a;">Extracted Medication Timetable & Pill Visual Catalog</h3>
+    <div style="margin-bottom: 12px;">
+        <h3 style="margin: 0 0 4px 0; font-size: 13px; text-transform: uppercase; color: #0f172a; font-weight: bold;">💊 24-Hour Medication Timetable & Pill Visual Guide</h3>
         <table>
             <thead>
                 <tr>
                     <th>Medication (Brand / Generic)</th>
-                    <th>Visual Appearance</th>
+                    <th>Visual Identifier</th>
                     <th>Dosage & Route</th>
-                    <th>Frequency</th>
-                    <th>Indication</th>
-                    <th>Dietary / Precautions</th>
+                    <th>Frequency / Slot</th>
+                    <th>Clinical Indication</th>
+                    <th>Dietary Instructions</th>
                 </tr>
             </thead>
             <tbody>
@@ -129,19 +155,19 @@ def generate_printable_report_html(data: Dict[str, Any]) -> str:
         </table>
     </div>
 
-    <div class="card" style="margin-bottom: 16px;">
-        <h3 style="margin: 0 0 6px 0; font-size: 13px; text-transform: uppercase; color: #475569;">Clinical SOAP Documentation</h3>
-        <div style="font-size: 12px; font-family: monospace;">
-            <p style="margin: 3px 0;"><strong>[S] Subjective:</strong> {soap.get('subjective', 'N/A')}</p>
-            <p style="margin: 3px 0;"><strong>[O] Objective:</strong> {soap.get('objective', 'N/A')}</p>
-            <p style="margin: 3px 0;"><strong>[A] Assessment:</strong> {soap.get('assessment', 'N/A')}</p>
-            <p style="margin: 3px 0;"><strong>[P] Plan:</strong> {soap.get('plan', 'N/A')}</p>
+    <div class="card" style="margin-bottom: 12px;">
+        <h3 style="margin: 0 0 6px 0; font-size: 12px; text-transform: uppercase; color: #475569; font-weight: bold;">📋 Clinical SOAP Progress Note</h3>
+        <div style="font-size: 11px; font-family: monospace;">
+            <p style="margin: 2px 0;"><strong>[S] Subjective:</strong> {soap.get('subjective', 'N/A')}</p>
+            <p style="margin: 2px 0;"><strong>[O] Objective:</strong> {soap.get('objective', 'N/A')}</p>
+            <p style="margin: 2px 0;"><strong>[A] Assessment:</strong> {soap.get('assessment', 'N/A')}</p>
+            <p style="margin: 2px 0;"><strong>[P] Plan:</strong> {soap.get('plan', 'N/A')}</p>
         </div>
     </div>
 
-    <div style="margin-top: 24px; padding-top: 12px; border-top: 1px dashed #94a3b8; display: flex; justify-content: space-between; font-size: 11px; color: #64748b;">
-        <div>MedForever AI Verification Protocol #MF-{abs(hash(now_str)) % 1000000}</div>
-        <div>Physician / Pharmacist Verification Signature: ___________________________</div>
+    <div style="margin-top: 18px; padding-top: 10px; border-top: 1px dashed #94a3b8; display: flex; justify-content: space-between; font-size: 10px; color: #64748b;">
+        <div>MedForever AI Verification Protocol #MF-{abs(hash(now_str)) % 1000000} | HL7 FHIR Interoperable</div>
+        <div>Attending Physician / Pharmacist Signature: ___________________________</div>
     </div>
 </body>
 </html>

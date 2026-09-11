@@ -50,7 +50,19 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
-# Pydantic Schemas
+class VitalsModel(BaseModel):
+    bp: Optional[str] = None
+    hr: Optional[str] = None
+    spo2: Optional[str] = None
+    temp: Optional[str] = None
+
+class LocationLookupRequest(BaseModel):
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    country_code: Optional[str] = None
+    city: Optional[str] = None
+    triage_level: Optional[str] = "GREEN"
+
 class AnalyzeRequest(BaseModel):
     image_data: Optional[str] = None
     audio_data: Optional[str] = None
@@ -58,6 +70,12 @@ class AnalyzeRequest(BaseModel):
     patient_history: Optional[str] = None
     patient_allergies: Optional[str] = None
     target_language: str = "en"
+    patient_photo: Optional[str] = None
+    vitals: Optional[Dict[str, Any]] = None
+    location_lat: Optional[float] = None
+    location_lon: Optional[float] = None
+    country_code: Optional[str] = None
+    city: Optional[str] = None
 
 class ApiKeyRequest(BaseModel):
     api_key: str
@@ -83,7 +101,13 @@ async def get_scenarios():
 
 
 @app.get("/api/scenarios/{scenario_id}")
-async def get_scenario_by_id(scenario_id: str):
+async def get_scenario_by_id(
+    scenario_id: str,
+    country_code: Optional[str] = "US",
+    city: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None
+):
     """Retrieve full enriched scenario data."""
     raw_scenario = get_demo_scenario(scenario_id)
     
@@ -93,7 +117,13 @@ async def get_scenario_by_id(scenario_id: str):
     
     conditions = scenario.get("patient", {}).get("pre_existing_conditions", [])
     scenario["environmental_context"] = analyze_environmental_risks(conditions)
-    scenario["emergency_facilities"] = get_nearby_emergency_resources(scenario.get("triage", {}).get("level", "GREEN"))
+    scenario["emergency_facilities"] = get_nearby_emergency_resources(
+        triage_level=scenario.get("triage", {}).get("level", "GREEN"),
+        lat=lat,
+        lon=lon,
+        country_code=country_code,
+        city=city
+    )
 
     fhir_bundle = generate_fhir_bundle(scenario)
     hl7_message = generate_hl7_v2_message(scenario)
@@ -105,41 +135,81 @@ async def get_scenario_by_id(scenario_id: str):
     }
 
 
+@app.post("/api/emergency/lookup")
+async def emergency_lookup(req: LocationLookupRequest):
+    """Get dynamic localized emergency helplines and nearby trauma care."""
+    return get_nearby_emergency_resources(
+        triage_level=req.triage_level or "GREEN",
+        lat=req.lat,
+        lon=req.lon,
+        country_code=req.country_code,
+        city=req.city
+    )
+
+
 @app.post("/api/analyze")
 async def analyze_input(
     payload: Optional[AnalyzeRequest] = None,
     image_file: Optional[UploadFile] = File(None),
+    patient_photo_file: Optional[UploadFile] = File(None),
     audio_file: Optional[UploadFile] = File(None),
     text_notes: Optional[str] = Form(None),
     patient_history: Optional[str] = Form(None),
     patient_allergies: Optional[str] = Form(None),
-    target_language: str = Form("en")
+    target_language: str = Form("en"),
+    country_code: Optional[str] = Form(None),
+    city: Optional[str] = Form(None),
+    location_lat: Optional[float] = Form(None),
+    location_lon: Optional[float] = Form(None),
+    vitals_json: Optional[str] = Form(None)
 ):
     """
     Multimodal analysis endpoint supporting JSON payload or Multipart Form uploads.
     """
     image_b64 = None
+    photo_b64 = None
     audio_b64 = None
     notes = text_notes
     history = patient_history
     allergies = patient_allergies
     lang = target_language
+    vitals = None
+    lat = location_lat
+    lon = location_lon
+    c_code = country_code
+    c_city = city
 
     if payload:
         image_b64 = payload.image_data
+        photo_b64 = payload.patient_photo
         audio_b64 = payload.audio_data
         notes = payload.text_notes or notes
         history = payload.patient_history or history
         allergies = payload.patient_allergies or allergies
         lang = payload.target_language or lang
+        vitals = payload.vitals
+        lat = payload.location_lat or lat
+        lon = payload.location_lon or lon
+        c_code = payload.country_code or c_code
+        c_city = payload.city or c_city
 
     if image_file:
         img_bytes = await image_file.read()
         image_b64 = f"data:{image_file.content_type};base64,{base64.b64encode(img_bytes).decode('utf-8')}"
         
+    if patient_photo_file:
+        photo_bytes = await patient_photo_file.read()
+        photo_b64 = f"data:{patient_photo_file.content_type};base64,{base64.b64encode(photo_bytes).decode('utf-8')}"
+
     if audio_file:
         aud_bytes = await audio_file.read()
         audio_b64 = f"data:{audio_file.content_type};base64,{base64.b64encode(aud_bytes).decode('utf-8')}"
+
+    if vitals_json and not vitals:
+        try:
+            vitals = json.loads(vitals_json)
+        except Exception:
+            pass
 
     result = analyze_multimodal_input(
         image_data=image_b64,
@@ -147,7 +217,13 @@ async def analyze_input(
         text_notes=notes,
         patient_history=history,
         patient_allergies=allergies,
-        target_language=lang
+        target_language=lang,
+        patient_photo=photo_b64,
+        vitals=vitals,
+        location_lat=lat,
+        location_lon=lon,
+        country_code=c_code,
+        city=c_city
     )
 
     fhir_bundle = generate_fhir_bundle(result)
