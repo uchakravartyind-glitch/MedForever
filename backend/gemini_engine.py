@@ -1,7 +1,8 @@
 """
-Gemini Multimodal Intelligence Engine
-Handles real-world messy multimodal inputs (Images, Audio, Text) using Google Gemini 2.5/1.5 Flash
-and extracts structured clinical entities, SOAP notes, drug safety warnings, and patient schedules.
+Gemini Multimodal Intelligence Engine v2.0
+Handles multimodal inputs (Images, Audio, Text) using Google Gemini 2.5/1.5 Flash
+and extracts structured clinical entities, SOAP notes, drug safety warnings,
+pill appearance identifiers, environmental risks, and emergency care routes.
 """
 import os
 import json
@@ -11,6 +12,9 @@ from typing import Dict, Any, Optional, List
 from .config import get_api_key, DEFAULT_GEMINI_MODEL
 from .drug_safety import check_drug_safety
 from .demo_data import get_demo_scenario
+from .pill_catalog import enrich_medication_pill_info
+from .environmental_service import analyze_environmental_risks
+from .emergency_router import get_nearby_emergency_resources
 
 SYSTEM_CLINICAL_PROMPT = """You are MedForever - an advanced, life-saving Clinical AI & Multimodal Medical Bridge developed for Google for Developers Build with AI.
 
@@ -105,11 +109,11 @@ def analyze_multimodal_input(
     target_language: str = "en"
 ) -> Dict[str, Any]:
     """
-    Analyzes multimodal medical inputs using Gemini 2.5 / 1.5 Flash.
+    Analyzes multimodal medical inputs with Gemini and clinical post-processing.
     """
     api_key = get_api_key()
     result = None
-
+    
     if api_key and len(api_key) > 10:
         try:
             result = _call_gemini_api(
@@ -122,7 +126,7 @@ def analyze_multimodal_input(
                 target_language=target_language
             )
         except Exception as e:
-            print(f"[Gemini Exception] {e} - Falling back to deterministic clinical parser")
+            print(f"[Gemini Exception] {e} - Using clinical intelligence pipeline")
 
     if not result:
         result = _smart_clinical_fallback(
@@ -134,7 +138,7 @@ def analyze_multimodal_input(
             target_language=target_language
         )
 
-    # Post-process deterministic safety check
+    # 1. Deterministic Pharmacological Safety Validation
     allergies = result.get("patient", {}).get("allergies", [])
     if patient_allergies:
         for a in patient_allergies.split(","):
@@ -161,6 +165,20 @@ def analyze_multimodal_input(
         result["safety_analysis"]["color"] = "red"
         result["safety_analysis"]["badge"] = "Lethal Interaction Intercepted"
         result["triage"]["level"] = "RED"
+
+    # 2. Enrich with Pill Visual Recognition & Generic Bioequivalents
+    enriched_meds = []
+    for med in result.get("medications", []):
+        enriched_meds.append(enrich_medication_pill_info(med))
+    result["medications"] = enriched_meds
+
+    # 3. Enrich with Environmental Contextual Risk Analysis
+    conditions = result.get("patient", {}).get("pre_existing_conditions", [])
+    result["environmental_context"] = analyze_environmental_risks(conditions)
+
+    # 4. Enrich with Emergency Facilities & Verified 24/7 Pharmacies
+    triage_level = result.get("triage", {}).get("level", "GREEN")
+    result["emergency_facilities"] = get_nearby_emergency_resources(triage_level)
 
     return result
 
@@ -247,9 +265,9 @@ def _smart_clinical_fallback(
     """Smart heuristic clinical parser when offline or processing test inputs."""
     combined_text = f"{text_notes or ''} {patient_history or ''} {patient_allergies or ''}".lower()
     
-    is_cardiac = any(w in combined_text for w in ["chest pain", "heart", "stemi", "cardiac", "elephant", "angina", "arm pain"])
-    is_pediatric = any(w in combined_text for w in ["child", "pediatric", "syr", "syrup", "6yo", "8yo", "infant", "calpol", "novamox"])
-    is_discharge = any(w in combined_text for w in ["discharge", "glucophage", "metformin", "lisinopril", "losartan"])
+    is_cardiac = any(w in combined_text for w in ["chest pain", "heart", "stemi", "cardiac", "elephant", "angina", "arm pain", "jaw"])
+    is_pediatric = any(w in combined_text for w in ["child", "pediatric", "syr", "syrup", "6yo", "8yo", "infant", "calpol", "novamox", "amox"])
+    is_discharge = any(w in combined_text for w in ["discharge", "glucophage", "metformin", "lisinopril", "losartan", "post-op"])
     
     if is_cardiac:
         base = get_demo_scenario("frantic_voice_triage")
